@@ -1,0 +1,87 @@
+# Builds every repository's docs into one site and deploys it to https://paperboatlab.github.io/.
+# Runs nightly, on a push here, by hand, and when a repository sends a `docs` dispatch after its
+# docs change. The repositories come from paperboat's toolkits.toml and apps.toml.
+name: pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [docs]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: paperboatlab/paperboat
+          path: work/paperboat
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build ccache libopencv-dev coinor-libipopt-dev
+          pip install sphinx shibuya
+      - name: Clone the repositories the manifests name
+        run: python3 build.py --work work --fetch
+      # The catalog tool, built with every optional toolkit in the tree, dumps each toolkit's blocks.
+      - name: Overlay the optional toolkits
+        run: for d in work/toolkit-*/engine/toolkit/*; do cp -r "$d" work/paperboat/engine/toolkit/; done
+      - uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-pages-${{ github.run_id }}
+          restore-keys: ccache-pages-
+      - name: Build the catalog tool
+        run: |
+          cmake -S work/paperboat/engine -B work/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DPAPERBOAT_BUILD_TESTS=OFF -DPAPERBOAT_WITH_SUNDIALS=OFF
+          cmake --build work/build
+      # The last deploy, so a site whose docs fail now keeps its last good build.
+      - uses: actions/cache/restore@v4
+        with:
+          path: previous
+          key: site-${{ github.run_id }}
+          restore-keys: site-
+      - name: Build every site
+        run: python3 build.py --work work --out _site --engine work/build/tools/paperboat-catalog --previous previous
+      - name: Keep this build for the next run
+        run: rm -rf previous && cp -r _site previous
+      - uses: actions/cache/save@v4
+        with:
+          path: previous
+          key: site-${{ github.run_id }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
