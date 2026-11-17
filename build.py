@@ -289,8 +289,9 @@ def sites(
 
 def pick_builder(ver_entry: dict, fallback_builder: Path) -> Path:
     tree = ver_entry.get("tree")
-    if tree and (tree / "docs/site/build.py").exists():
-        return tree / "docs/site/build.py"
+    cand = tree / "docs/site/build.py" if tree else None
+    if cand and cand.exists() and "--versions-json" in cand.read_text():
+        return cand
     return fallback_builder
 
 
@@ -423,14 +424,14 @@ def main() -> int:
 
     pb_repo = args.work / "paperboat"
     pb_versions = discover_versions(pb_repo, include_prereleases=args.include_prereleases, max_tags=args.max_tags)
-    pb_default = default_version(pb_versions)
+    pb_dev = next((v for v in pb_versions if v["version"] == "dev"), None) or default_version(pb_versions)
     fallback_tree = (
-        materialize_ref(pb_repo, pb_default["ref"], args.work / ".trees/paperboat" / safe_dir_name(pb_default["version"]))
-        if pb_default else pb_repo
+        materialize_ref(pb_repo, pb_dev["ref"], args.work / ".trees/paperboat" / safe_dir_name(pb_dev["version"]))
+        if pb_dev else pb_repo
     )
-    fallback_builder = fallback_tree / "docs/site/build.py"
-    if not fallback_builder.exists():
-        fallback_builder = pb_repo / "docs/site/build.py"
+    fallback_builder = pb_repo / "docs/site/build.py"
+    if not fallback_builder.exists() or "--versions-json" not in fallback_builder.read_text():
+        fallback_builder = fallback_tree / "docs/site/build.py"
 
     prev_sites: dict[str, dict] = {}
     if args.previous and (args.previous / "sites.json").exists():
@@ -544,6 +545,7 @@ def main() -> int:
                         print(f"::error title={s['site']} (default {chosen['version']}) docs failed::{log}", file=sys.stderr)
                         prev_root = args.previous / s["site"] if args.previous else None
                         if prev_root and (prev_root / "help.json").exists():
+                            root_dest.mkdir(parents=True, exist_ok=True)
                             for item in prev_root.iterdir():
                                 if item.name not in {bv["version"] for bv in built_versions}:
                                     dst = root_dest / item.name
