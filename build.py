@@ -1,85 +1,345 @@
 #!/usr/bin/env python3
-"""Build the org's docs site: every repository's docs, one site each, under one domain.
+"""Build the org's docs site: every repository's docs across tracked git versions, under one domain.
 
-    python3 build.py --work WORK --fetch                 # clone what the manifests name
+    python3 build.py --work WORK --fetch                 # clone/fetch what the manifests name
     python3 build.py --work WORK --out OUT --engine paperboat-catalog [--previous PREV]
 
 WORK holds a paperboat checkout (WORK/paperboat); every other repository is cloned next to it
 from the paperboat manifests (toolkits.toml, apps.toml), so this repository keeps no list of its
-own. Each site is built by paperboat's docs/site/build.py (HTML and help.json) into
-OUT/<site>/. A site that fails keeps its build from PREV (the last deploy), marked stale, so one
-broken repository never takes the others down. OUT/sites.json lists them all; OUT/index.html is
-the hub.
+own. Versions for every repository are tracked directly from git refs (`release` branch if present,
+`v*` release tags, and `dev`). Each site/version is built by paperboat's docs/site/build.py into
+OUT/<site>/<version>/, and each site's default version (release > latest tag > dev) is also served
+at OUT/<site>/ for backwards-compatible links and `@paperboat/shared` Help lookups.
 """
 
 import argparse
 import datetime
 import html
+import io
 import json
+import re
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 import tomllib
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ORG = "https://github.com/paperboatlab/"
+SITE_ORG_URL = "https://paperboatlab.github.io/"
+SEMVER_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$")
 
 
 def git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True).stdout.strip()
 
 
-def checkout(work: Path, name: str, url: str) -> Path:
+def git_ok(repo: Path, *args: str) -> bool:
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True).returncode == 0
+
+
+def parse_semver(tag: str) -> tuple[int, int, int, int, tuple] | None:
+    """Parse a `vX.Y.Z[-pre]` tag into a sortable key (stable sorts higher than prerelease)."""
+    m = SEMVER_RE.match(tag)
+    if not m:
+        return None
+    major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    pre = m.group(4)
+    if not pre:
+        return (major, minor, patch, 1, ())
+    parts = tuple((0, int(p)) if p.isdigit() else (1, p) for p in pre.split("."))
+    return (major, minor, patch, 0, parts)
+
+
+def checkout(work: Path, name: str, url: str, fetch: bool = False) -> Path:
     path = work / name
     if not path.exists():
-        subprocess.run(["git", "clone", "-q", "--depth", "1", url, str(path)], check=True)
+        subprocess.run(["git", "clone", "-q", "--filter=blob:none", url, str(path)], check=True)
+    elif fetch and git_ok(path, "remote", "get-url", "origin"):
+        subprocess.run(
+            ["git", "-C", str(path), "fetch", "-q", "--tags", "--prune", "origin", "+refs/heads/*:refs/remotes/origin/*"],
+            check=False,
+        )
     return path
 
 
-def sites(work: Path) -> list[dict]:
-    """Every site, from the manifests: the engine, its built-in toolkits, the optional toolkits,
-    and every app whose repository has a docs/ folder (the rest get a card linking the repo)."""
-    pb = work / "paperboat"
-    out = [{"site": "paperboat", "title": "Paperboat", "kind": "engine", "repo": ORG + "paperboat",
-            "checkout": pb, "src": pb / "docs/api"}]
-    for docs in sorted((pb / "engine/toolkit/src").glob("*/docs")):
-        name = docs.parent.name
-        out.append({"site": f"toolkits/{name}", "title": name, "kind": "toolkit", "builtin": True,
-                    "repo": ORG + "paperboat", "checkout": pb, "src": docs, "package": name, "blocks": docs.parent})
-    for t in tomllib.loads((pb / "toolkits.toml").read_text())["toolkits"]:
-        repo = checkout(work, f"toolkit-{t['name']}", t["repo"])
-        folder = repo / "engine/toolkit" / t["name"]
-        out.append({"site": f"toolkits/{t['name']}", "title": t["name"], "kind": "toolkit", "repo": t["repo"].removesuffix(".git"),
-                    "description": t.get("description", ""), "requires": t.get("requires", []), "checkout": repo,
-                    "src": folder / "docs", "package": t["name"], "blocks": folder / "src" / t["name"]})
-    for a in tomllib.loads((pb / "apps.toml").read_text())["apps"]:
-        repo = checkout(work, a["name"], a["repo"])
+def resolve_branch_ref(repo: Path, branch: str) -> str | None:
+    for ref in (f"refs/heads/{branch}", f"refs/remotes/origin/{branch}"):
+        if git_ok(repo, "rev-parse", "--verify", "--quiet", ref):
+            return ref
+    return None
+
+
+def discover_versions(repo: Path, *, include_prereleases: bool = False, max_tags: int = 0) -> list[dict]:
+    """Discover tracked git versions for `repo`: `release` branch (if any), `v*` tags, and `dev`."""
+    versions: list[dict] = []
+    seen_versions: set[str] = set()
+
+    release_ref = resolve_branch_ref(repo, "release")
+    if release_ref:
+        commit = git(repo, "rev-parse", "--short", release_ref)
+        versions.append({
+            "version": "release",
+            "ref": release_ref,
+            "commit": commit,
+            "channel": "release",
+            "immutable": False,
+        })
+        seen_versions.add("release")
+
+    raw_tags = git(repo, "tag", "-l", "v*").splitlines()
+    parsed = [(parse_semver(t), t) for t in raw_tags]
+    valid_tags = [(key, tag) for key, tag in parsed if key is not None]
+    valid_tags.sort(key=lambda item: item[0], reverse=True)
+
+    stable_tags = [(key, tag) for key, tag in valid_tags if key[3] == 1]
+    pre_tags = [(key, tag) for key, tag in valid_tags if key[3] == 0]
+
+    selected_tags = valid_tags if include_prereleases else (stable_tags or pre_tags[:1])
+    if max_tags > 0:
+        selected_tags = selected_tags[:max_tags]
+
+    for _, tag in selected_tags:
+        if tag in seen_versions:
+            continue
+        commit = git(repo, "rev-parse", "--short", f"refs/tags/{tag}")
+        versions.append({
+            "version": tag,
+            "ref": f"refs/tags/{tag}",
+            "commit": commit,
+            "channel": "release",
+            "immutable": True,
+        })
+        seen_versions.add(tag)
+
+    dev_ref = resolve_branch_ref(repo, "dev") or resolve_branch_ref(repo, "main") or "HEAD"
+    if "dev" not in seen_versions and git_ok(repo, "rev-parse", "--verify", "--quiet", dev_ref):
+        commit = git(repo, "rev-parse", "--short", dev_ref)
+        versions.append({
+            "version": "dev",
+            "ref": dev_ref,
+            "commit": commit,
+            "channel": "dev",
+            "immutable": False,
+        })
+
+    return versions
+
+
+def default_version(versions: list[dict]) -> dict | None:
+    """Default version for `/<site>/`: `release` branch > newest release tag > `dev`."""
+    for v in versions:
+        if v["channel"] == "release":
+            return v
+    return versions[0] if versions else None
+
+
+def materialize_ref(repo: Path, ref: str, dest: Path) -> Path:
+    """Export `ref` from `repo` into `dest` via `git archive` (safe across concurrent/dirty checkouts)."""
+    if (dest / ".pb-ref").exists() and (dest / ".pb-ref").read_text().strip() == ref:
+        return dest
+    shutil.rmtree(dest, ignore_errors=True)
+    dest.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", ref], capture_output=True, check=True)
+    with tarfile.open(fileobj=io.BytesIO(proc.stdout), mode="r:") as tf:
+        tf.extractall(dest, filter="data")
+    (dest / ".pb-ref").write_text(ref)
+    return dest
+
+
+def safe_dir_name(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", name)
+
+
+def sites(
+    work: Path,
+    *,
+    fetch: bool = False,
+    include_prereleases: bool = False,
+    max_tags: int = 0,
+) -> list[dict]:
+    """Every site and its git-tracked versions, from the manifests in paperboat."""
+    pb_repo = work / "paperboat"
+    if fetch and git_ok(pb_repo, "remote", "get-url", "origin"):
+        subprocess.run(
+            ["git", "-C", str(pb_repo), "fetch", "-q", "--tags", "--prune", "origin", "+refs/heads/*:refs/remotes/origin/*"],
+            check=False,
+        )
+
+    pb_versions = discover_versions(pb_repo, include_prereleases=include_prereleases, max_tags=max_tags)
+    trees_root = work / ".trees"
+
+    # Extract each tracked paperboat ref once so manifests and built-in toolkits come from that exact version.
+    pb_trees: dict[str, Path] = {}
+    toolkit_defs: dict[str, dict] = {}
+    app_defs: dict[str, dict] = {}
+    for v in pb_versions:
+        tree = materialize_ref(pb_repo, v["ref"], trees_root / "paperboat" / safe_dir_name(v["version"]))
+        pb_trees[v["version"]] = tree
+        if (tree / "toolkits.toml").exists():
+            for t in tomllib.loads((tree / "toolkits.toml").read_text()).get("toolkits", []):
+                toolkit_defs.setdefault(t["name"], t)
+        if (tree / "apps.toml").exists():
+            for a in tomllib.loads((tree / "apps.toml").read_text()).get("apps", []):
+                app_defs.setdefault(a["name"], a)
+
+    # Engine site
+    pb_site_versions = []
+    builtin_names: list[str] = []
+    seen_builtins: set[str] = set()
+    for v in pb_versions:
+        tree = pb_trees[v["version"]]
+        src = tree / "docs/api"
+        pb_site_versions.append({
+            **v,
+            "tree": tree,
+            "src": src if (src / "index.rst").exists() else None,
+        })
+        if (tree / "engine/toolkit/src").exists():
+            for docs in sorted((tree / "engine/toolkit/src").glob("*/docs")):
+                pkg = docs.parent.name
+                if pkg not in seen_builtins:
+                    seen_builtins.add(pkg)
+                    builtin_names.append(pkg)
+
+    out: list[dict] = [{
+        "site": "paperboat",
+        "title": "Paperboat",
+        "kind": "engine",
+        "repo": ORG + "paperboat",
+        "versions": pb_site_versions,
+    }]
+
+    # Built-in toolkits (versioned with paperboat)
+    for pkg in sorted(builtin_names):
+        pkg_versions = []
+        for v in pb_versions:
+            tree = pb_trees[v["version"]]
+            docs = tree / "engine/toolkit/src" / pkg / "docs"
+            pkg_versions.append({
+                **v,
+                "tree": tree,
+                "src": docs if (docs / "index.rst").exists() else None,
+                "package": pkg,
+                "blocks": docs.parent,
+            })
+        out.append({
+            "site": f"toolkits/{pkg}",
+            "title": pkg,
+            "kind": "toolkit",
+            "builtin": True,
+            "repo": ORG + "paperboat",
+            "versions": pkg_versions,
+        })
+
+    # Optional toolkits (each tracks its own git refs)
+    for name, t in toolkit_defs.items():
+        repo = checkout(work, f"toolkit-{name}", t["repo"], fetch=fetch)
+        t_versions = discover_versions(repo, include_prereleases=include_prereleases, max_tags=max_tags)
+        ver_entries = []
+        for v in t_versions:
+            tree = materialize_ref(repo, v["ref"], trees_root / f"toolkit-{name}" / safe_dir_name(v["version"]))
+            folder = tree / "engine/toolkit" / name
+            docs = folder / "docs"
+            ver_entries.append({
+                **v,
+                "tree": tree,
+                "src": docs if (docs / "index.rst").exists() else None,
+                "package": name,
+                "blocks": folder / "src" / name,
+            })
+        out.append({
+            "site": f"toolkits/{name}",
+            "title": name,
+            "kind": "toolkit",
+            "repo": t["repo"].removesuffix(".git"),
+            "description": t.get("description", ""),
+            "requires": t.get("requires", []),
+            "versions": ver_entries,
+        })
+
+    # Apps and libraries (each tracks its own git refs)
+    for name, a in app_defs.items():
+        repo = checkout(work, name, a["repo"], fetch=fetch)
         kind = "program" if a.get("kind") == "program" else "library"
-        entry = {"site": f"apps/{a['name']}", "title": a["name"], "kind": kind, "repo": a["repo"].removesuffix(".git"),
-                 "description": a.get("description", ""), "checkout": repo, "port": a.get("port")}
-        if (repo / "docs/index.rst").exists():
-            entry["src"] = repo / "docs"
-        out.append(entry)
+        a_versions = discover_versions(repo, include_prereleases=include_prereleases, max_tags=max_tags)
+        ver_entries = []
+        for v in a_versions:
+            tree = materialize_ref(repo, v["ref"], trees_root / name / safe_dir_name(v["version"]))
+            docs = tree / "docs"
+            ver_entries.append({
+                **v,
+                "tree": tree,
+                "src": docs if (docs / "index.rst").exists() else None,
+            })
+        out.append({
+            "site": f"apps/{name}",
+            "title": name,
+            "kind": kind,
+            "repo": a["repo"].removesuffix(".git"),
+            "description": a.get("description", ""),
+            "port": a.get("port"),
+            "versions": ver_entries,
+        })
+
     return out
 
 
-def build_site(s: dict, out: Path, builder: Path, engine: str) -> tuple[bool, str]:
-    cmd = [sys.executable, str(builder), str(s["src"]), str(out), "--name", s["site"], "--repo", s["repo"]]
-    if s["kind"] == "program":
-        cmd += ["--title", s["title"]]
-    if s.get("package"):
-        cmd += ["--engine", engine, "--package", s["package"], "--blocks", str(s["blocks"])]
+def pick_builder(ver_entry: dict, fallback_builder: Path) -> Path:
+    tree = ver_entry.get("tree")
+    if tree and (tree / "docs/site/build.py").exists():
+        return tree / "docs/site/build.py"
+    return fallback_builder
+
+
+def build_site(
+    site: dict,
+    ver: dict,
+    out: Path,
+    builder: Path,
+    engine: str,
+    url: str,
+    versions_json: str,
+) -> tuple[bool, str]:
+    cmd = [
+        sys.executable, str(builder), str(ver["src"]), str(out),
+        "--name", site["site"],
+        "--repo", site["repo"],
+        "--version", ver["version"],
+        "--url", url,
+        "--versions-json", versions_json,
+    ]
+    if site["kind"] == "program":
+        cmd += ["--title", site["title"]]
+    if ver.get("package"):
+        cmd += ["--engine", engine, "--package", ver["package"], "--blocks", str(ver["blocks"])]
     res = subprocess.run(cmd, capture_output=True, text=True)
     return res.returncode == 0, (res.stdout + res.stderr)[-4000:]
+
+
+def pick_engine(version: str, default_engine: str, engines_dir: Path | None) -> str:
+    if engines_dir:
+        cand = engines_dir / safe_dir_name(version) / "paperboat-catalog"
+        if cand.exists():
+            return str(cand)
+    return default_engine
 
 
 def card(s: dict) -> str:
     esc = html.escape
     href = f"{s['site']}/" if s.get("status") in ("ok", "stale") else s["repo"]
-    status = {"ok": "", "stale": '<span class="warn">build failed · last good shown</span>',
-              "failed": '<span class="fail">build failed</span>'}.get(s.get("status", ""), '<span>README</span>')
-    meta = [f"<b>{esc(s['commit'])}</b>"] if s.get("commit") else []
+    status = {
+        "ok": "",
+        "stale": '<span class="warn">build failed · last good shown</span>',
+        "failed": '<span class="fail">build failed</span>',
+    }.get(s.get("status", ""), "<span>README</span>")
+    meta: list[str] = []
+    if s.get("version"):
+        meta.append(f"<b>{esc(s['version'])}</b>")
+    if s.get("commit"):
+        meta.append(f"<b>{esc(s['commit'])}</b>")
     if s.get("blocks_count"):
         meta.append(f"<b>{s['blocks_count']}</b> blocks")
     if s.get("builtin"):
@@ -88,22 +348,51 @@ def card(s: dict) -> str:
         meta.append(f"needs {esc(r)}")
     if s.get("port"):
         meta.append(f"port {s['port']}")
-    return (f'<a class="card" href="{esc(href)}"><div class="h"><span class="n">{esc(s["title"])}</span></div>'
-            f'<p>{esc(s.get("description", ""))}</p><div class="meta">{" ".join(f"<span>{m}</span>" for m in meta)}{status}</div></a>')
+    built_vers = [v for v in s.get("versions", []) if v.get("status") in ("ok", "stale")]
+    vers_html = ""
+    if built_vers:
+        pills = "".join(
+            f'<a class="vpill{" on" if v["version"] == s.get("version") else ""}" '
+            f'data-channel="{esc(v["channel"])}" href="{esc(v["url"])}">{esc(v["version"])}</a>'
+            for v in built_vers
+        )
+        vers_html = f'<div class="vers">{pills}</div>'
+    return (
+        f'<article class="card" data-channel="{esc(s.get("channel", "dev"))}">'
+        f'<a class="card-main" href="{esc(href)}"><div class="h"><span class="n">{esc(s["title"])}</span></div>'
+        f'<p>{esc(s.get("description", ""))}</p></a>'
+        f'{vers_html}'
+        f'<div class="meta">{" ".join(f"<span>{m}</span>" for m in meta)}{status}</div>'
+        f'</article>'
+    )
 
 
 def hub(all_sites: list[dict], built: str) -> str:
-    groups = [("engine", "the framework: manuals, SDKs, protocol", lambda s: s["kind"] == "engine"),
-              ("toolkits", "blocks by package; the optional ones install per user", lambda s: s["kind"] == "toolkit"),
-              ("programs", "paperboat start <name>", lambda s: s["kind"] == "program"),
-              ("libraries", "what the programs build on", lambda s: s["kind"] == "library")]
+    groups = [
+        ("engine", "the framework: manuals, SDKs, protocol", lambda s: s["kind"] == "engine"),
+        ("toolkits", "blocks by package; the optional ones install per user", lambda s: s["kind"] == "toolkit"),
+        ("programs", "paperboat start <name>", lambda s: s["kind"] == "program"),
+        ("libraries", "what the programs build on", lambda s: s["kind"] == "library"),
+    ]
     body = ""
     for name, note, pick in groups:
         members = [s for s in all_sites if pick(s)]
-        body += (f'<section><div class="sect-h"><h2>{name}</h2><span>{len(members)} · {html.escape(note)}</span><hr></div>'
-                 f'<div class="grid">{"".join(card(s) for s in members)}</div></section>')
+        body += (
+            f'<section><div class="sect-h"><h2>{name}</h2><span>{len(members)} · {html.escape(note)}</span><hr></div>'
+            f'<div class="grid">{"".join(card(s) for s in members)}</div></section>'
+        )
     template = (HERE / "hub.html").read_text()
     return template.replace("{{sections}}", body).replace("{{built}}", built)
+
+
+def _prev_entry(prev_sites: dict, site_name: str, version: str) -> dict | None:
+    site = prev_sites.get(site_name)
+    if not site:
+        return None
+    for v in site.get("versions", []):
+        if v.get("version") == version:
+            return v
+    return None
 
 
 def main() -> int:
@@ -111,54 +400,193 @@ def main() -> int:
     ap.add_argument("--work", type=Path, required=True)
     ap.add_argument("--out", type=Path)
     ap.add_argument("--engine", help="paperboat-catalog, built with every optional toolkit")
-    ap.add_argument("--fetch", action="store_true", help="only clone the repositories (to build the engine with the toolkits)")
-    ap.add_argument("--previous", type=Path, help="the last deploy, for the sites that fail now")
+    ap.add_argument("--engines-dir", type=Path, help="optional directory of per-version <ver>/paperboat-catalog binaries")
+    ap.add_argument("--fetch", action="store_true", help="clone/fetch repositories and tracked git refs, then exit")
+    ap.add_argument("--previous", type=Path, help="the last deploy, for failed sites and cached immutable tags")
+    ap.add_argument("--org-url", default=SITE_ORG_URL, help="base URL where the site is served")
+    ap.add_argument("--include-prereleases", action="store_true", help="include v*-alpha/rc tags even when stable tags exist")
+    ap.add_argument("--max-tags", type=int, default=0, help="maximum release tags per repository (0 = all)")
+    ap.add_argument("--reuse-tags", action="store_true", help="reuse immutable tag builds from --previous when commit and versions match")
     args = ap.parse_args()
 
-    all_sites = sites(args.work)
+    org_url = args.org_url if args.org_url.endswith("/") else args.org_url + "/"
+    all_sites = sites(
+        args.work,
+        fetch=args.fetch,
+        include_prereleases=args.include_prereleases,
+        max_tags=args.max_tags,
+    )
     if args.fetch:
         return 0
     if not (args.out and args.engine):
         ap.error("--out and --engine are needed to build")
-    builder = args.work / "paperboat/docs/site/build.py"
+
+    pb_repo = args.work / "paperboat"
+    pb_versions = discover_versions(pb_repo, include_prereleases=args.include_prereleases, max_tags=args.max_tags)
+    pb_default = default_version(pb_versions)
+    fallback_tree = (
+        materialize_ref(pb_repo, pb_default["ref"], args.work / ".trees/paperboat" / safe_dir_name(pb_default["version"]))
+        if pb_default else pb_repo
+    )
+    fallback_builder = fallback_tree / "docs/site/build.py"
+    if not fallback_builder.exists():
+        fallback_builder = pb_repo / "docs/site/build.py"
+
+    prev_sites: dict[str, dict] = {}
+    if args.previous and (args.previous / "sites.json").exists():
+        for entry in json.loads((args.previous / "sites.json").read_text()):
+            prev_sites[entry["site"]] = entry
+
     shutil.rmtree(args.out, ignore_errors=True)
     args.out.mkdir(parents=True)
     failed = 0
+
     for s in all_sites:
-        s["commit"] = git(s["checkout"], "rev-parse", "--short", "HEAD")
-        if "src" not in s:
-            continue
-        dest = args.out / s["site"]
-        ok, log = build_site(s, dest, builder, args.engine)
-        if ok:
-            s["status"] = "ok"
-        else:
-            failed += 1
-            print(f"::error title={s['site']} docs failed::{log}", file=sys.stderr)
-            prev = args.previous / s["site"] if args.previous else None
-            shutil.rmtree(dest, ignore_errors=True)
-            if prev and (prev / "help.json").exists():
-                shutil.copytree(prev, dest)
-                s["status"] = "stale"
+        versions = s["versions"]
+        has_docs = [v for v in versions if v.get("src") is not None]
+        # Build version switcher items only for versions that have docs.
+        switcher_items = [
+            {"version": v["version"], "url": f"{org_url}{s['site']}/{v['version']}/"}
+            for v in has_docs
+        ]
+        versions_json = json.dumps(switcher_items) if switcher_items else ""
+
+        built_versions: list[dict] = []
+        for v in versions:
+            ver_rel_url = f"{s['site']}/{v['version']}/"
+            ver_out = args.out / s["site"] / v["version"]
+            if v.get("src") is None:
+                built_versions.append({
+                    "version": v["version"],
+                    "channel": v["channel"],
+                    "ref": v["ref"],
+                    "commit": v["commit"],
+                    "url": s["repo"],
+                })
+                continue
+
+            reused = False
+            prev_ver = _prev_entry(prev_sites, s["site"], v["version"])
+            prev_dir = args.previous / s["site"] / v["version"] if args.previous else None
+            if (
+                args.reuse_tags
+                and v.get("immutable")
+                and prev_ver
+                and prev_ver.get("status") == "ok"
+                and prev_ver.get("commit") == v["commit"]
+                and prev_dir
+                and (prev_dir / "help.json").exists()
+                and prev_sites.get(s["site"], {}).get("versions")
+                and [pv["version"] for pv in prev_sites[s["site"]]["versions"] if pv.get("help")] == [x["version"] for x in switcher_items]
+            ):
+                shutil.copytree(prev_dir, ver_out)
+                status = "ok"
+                reused = True
             else:
-                s["status"] = "failed"
-        if (dest / "help.json").exists():
-            help = json.loads((dest / "help.json").read_text())
-            s["help"] = f"{s['site']}/help.json"
-            s["blocks_count"] = len(list((dest / "blocks").glob("**/*.html"))) - 1 if (dest / "blocks").exists() else 0
-            intro = next((i for i in help["items"] if i["id"] == "index"), None)
-            if not s.get("description") and intro:
-                s["description"] = intro["summary"]
-        print(f"{s['site']:32} {s.get('status', 'readme')}")
+                builder = pick_builder(v, fallback_builder)
+                engine_bin = pick_engine(v["version"], args.engine, args.engines_dir)
+                ok, log = build_site(s, v, ver_out, builder, engine_bin, f"{org_url}{ver_rel_url}", versions_json)
+                if ok:
+                    status = "ok"
+                else:
+                    failed += 1
+                    print(f"::error title={s['site']}@{v['version']} docs failed::{log}", file=sys.stderr)
+                    shutil.rmtree(ver_out, ignore_errors=True)
+                    if prev_dir and (prev_dir / "help.json").exists():
+                        shutil.copytree(prev_dir, ver_out)
+                        status = "stale"
+                    else:
+                        status = "failed"
+
+            ver_record: dict = {
+                "version": v["version"],
+                "channel": v["channel"],
+                "ref": v["ref"],
+                "commit": v["commit"],
+                "status": status,
+                "url": ver_rel_url,
+            }
+            if (ver_out / "help.json").exists():
+                help_data = json.loads((ver_out / "help.json").read_text())
+                ver_record["help"] = f"{ver_rel_url}help.json"
+                ver_record["blocks_count"] = len(list((ver_out / "blocks").glob("**/*.html"))) - 1 if (ver_out / "blocks").exists() else 0
+                intro = next((i for i in help_data["items"] if i["id"] == "index"), None)
+                if not s.get("description") and intro:
+                    s["description"] = intro["summary"]
+            built_versions.append(ver_record)
+            tag = "cached" if reused else status
+            print(f"{s['site']}@{v['version']:20} {tag}")
+
+        # Pick the default version to expose at `/<site>/` (release > latest tag > dev), preferring one with docs.
+        doc_built = [v for v in built_versions if v.get("status") in ("ok", "stale")]
+        doc_raw_by_ver = {v["version"]: v for v in versions}
+        chosen = default_version(doc_built) or default_version(built_versions)
+        if chosen:
+            s["version"] = chosen["version"]
+            s["channel"] = chosen["channel"]
+            s["commit"] = chosen["commit"]
+            raw_chosen = doc_raw_by_ver[chosen["version"]]
+            if raw_chosen.get("src") is not None:
+                root_dest = args.out / s["site"]
+                builder = pick_builder(raw_chosen, fallback_builder)
+                engine_bin = pick_engine(chosen["version"], args.engine, args.engines_dir)
+                with tempfile.TemporaryDirectory() as tmp_root:
+                    tmp_out = Path(tmp_root) / "site"
+                    ok, log = build_site(
+                        s, raw_chosen, tmp_out, builder, engine_bin,
+                        f"{org_url}{s['site']}/", versions_json,
+                    )
+                    if ok:
+                        shutil.copytree(tmp_out, root_dest, dirs_exist_ok=True)
+                        s["status"] = "ok"
+                    else:
+                        failed += 1
+                        print(f"::error title={s['site']} (default {chosen['version']}) docs failed::{log}", file=sys.stderr)
+                        prev_root = args.previous / s["site"] if args.previous else None
+                        if prev_root and (prev_root / "help.json").exists():
+                            for item in prev_root.iterdir():
+                                if item.name not in {bv["version"] for bv in built_versions}:
+                                    dst = root_dest / item.name
+                                    if item.is_dir():
+                                        shutil.copytree(item, dst, dirs_exist_ok=True)
+                                    else:
+                                        shutil.copy2(item, dst)
+                            s["status"] = "stale"
+                        else:
+                            s["status"] = "failed"
+                if (root_dest / "help.json").exists():
+                    s["help"] = f"{s['site']}/help.json"
+                    s["blocks_count"] = len(list((root_dest / "blocks").glob("**/*.html"))) - 1 if (root_dest / "blocks").exists() else 0
+            else:
+                print(f"{s['site']:32} readme")
+        s["versions"] = built_versions
 
     built = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M UTC")
-    keys = ("site", "title", "kind", "description", "repo", "commit", "status", "help", "builtin", "requires", "port", "blocks_count")
-    (args.out / "sites.json").write_text(json.dumps([{k: s[k] for k in keys if s.get(k) not in (None, "", [])} for s in all_sites], indent=1))
+    keys = ("site", "title", "kind", "description", "repo", "version", "channel", "commit", "status", "help", "builtin", "requires", "port", "blocks_count", "versions")
+    serialized_sites = [{k: s[k] for k in keys if s.get(k) not in (None, "", [])} for s in all_sites]
+    (args.out / "sites.json").write_text(json.dumps(serialized_sites, indent=1))
+    (args.out / "versions.json").write_text(json.dumps({
+        "built": built,
+        "sites": [
+            {
+                "site": s["site"],
+                "default": s.get("version"),
+                "versions": [
+                    {k: v[k] for k in ("version", "channel", "ref", "commit", "status", "url", "help") if v.get(k) is not None}
+                    for v in s.get("versions", [])
+                ],
+            }
+            for s in all_sites
+        ],
+    }, indent=1))
     (args.out / "index.html").write_text(hub(all_sites, built))
-    static = args.work / "paperboat/docs/_static"
-    shutil.copytree(static / "fonts", args.out / "_hub/fonts")
+
+    static_root = fallback_tree / "docs/_static"
+    if not static_root.exists():
+        static_root = pb_repo / "docs/_static"
+    shutil.copytree(static_root / "fonts", args.out / "_hub/fonts")
     for f in ("fonts.css", "favicon.svg", "logo-light.svg", "logo-dark.svg"):
-        shutil.copy(static / f, args.out / "_hub" / f)
+        shutil.copy(static_root / f, args.out / "_hub" / f)
     (args.out / ".nojekyll").touch()  # Sphinx's _static and _images folders
     print(f"{len(all_sites)} sites, {failed} failed")
     return 0

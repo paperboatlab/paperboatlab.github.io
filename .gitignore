@@ -2,3 +2,4 @@ _site/
 previous/
 work/
 .ccache/
+__pycache__/

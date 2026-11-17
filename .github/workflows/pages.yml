@@ -1,16 +1,18 @@
-# Builds every repository's docs into one site and deploys it to https://paperboatlab.github.io/.
-# Runs nightly, on a push here, by hand, and when a repository sends a `docs` dispatch after its
-# docs change. The repositories come from paperboat's toolkits.toml and apps.toml.
+# Builds every repository's docs across tracked git versions into one site and deploys to https://paperboatlab.github.io/.
+# Pushes to `dev` and PRs verify the build; pushes to `release`, nightly runs, manual runs, and upstream
+# `docs` / `release` dispatches deploy the site. Repositories come from paperboat's toolkits.toml and apps.toml.
 name: pages
 
 on:
   push:
-    branches: [main, dev]
+    branches: [release, dev, main]
+  pull_request:
+    branches: [release, dev]
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
   repository_dispatch:
-    types: [docs]
+    types: [docs, release]
 
 permissions:
   contents: read
@@ -34,6 +36,7 @@ jobs:
         with:
           repository: paperboatlab/paperboat
           path: work/paperboat
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -42,7 +45,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build ccache libopencv-dev coinor-libipopt-dev
           pip install sphinx shibuya
-      - name: Clone the repositories the manifests name
+      - name: Clone and fetch the repositories and git refs the manifests name
         run: python3 build.py --work work --fetch
       # The catalog tool, built with every optional toolkit in the tree, dumps each toolkit's blocks.
       - name: Overlay the optional toolkits
@@ -57,27 +60,34 @@ jobs:
           cmake -S work/paperboat/engine -B work/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DPAPERBOAT_BUILD_TESTS=OFF -DPAPERBOAT_WITH_SUNDIALS=OFF
           cmake --build work/build
-      # The last deploy, so a site whose docs fail now keeps its last good build.
+      # The last deploy, so failed sites keep their last good build and immutable tags can be reused.
       - uses: actions/cache/restore@v4
         with:
           path: previous
           key: site-${{ github.run_id }}
           restore-keys: site-
-      - name: Build every site
-        run: python3 build.py --work work --out _site --engine work/build/tools/paperboat-catalog --previous previous
+      - name: Build every site and tracked version
+        run: python3 build.py --work work --out _site --engine work/build/tools/paperboat-catalog --previous previous --reuse-tags
+      - name: Run build script unit tests
+        run: python3 -m unittest test_build.py
       - name: Keep this build for the next run
+        if: github.event_name != 'pull_request'
         run: rm -rf previous && cp -r _site previous
       - uses: actions/cache/save@v4
+        if: github.event_name != 'pull_request'
         with:
           path: previous
           key: site-${{ github.run_id }}
       - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/release' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch')
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/release' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch')
         with:
           path: _site
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/release' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch')
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
