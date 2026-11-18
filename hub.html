@@ -23,9 +23,13 @@ header.top nav a{text-decoration:none}
 .hero p{margin:0;color:var(--ink-2);max-width:540px}
 .term{background:var(--screen);color:var(--screen-text);font:12.5px/1.75 var(--mono);padding:12px 14px}
 .term .d{color:var(--screen-dim)} .term .s{color:var(--signal)}
-.search{position:relative;margin:22px 0 4px}
+.toolbar{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;margin:22px 0 4px}
+.search{position:relative}
 .search input{width:100%;font:14px var(--sans);color:var(--ink);background:var(--well);border:1px solid var(--line);padding:9px 12px}
 .search input:focus{outline:none;border-color:var(--ink)}
+.channels{display:flex;gap:4px;border:1px solid var(--line);background:var(--well);padding:3px}
+.channels button{border:0;background:transparent;color:var(--ink-2);font:12px var(--mono);padding:6px 10px;cursor:pointer}
+.channels button.on{background:var(--panel);color:var(--ink);font-weight:500;outline:1px solid var(--line-2)}
 .results{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--line);background:var(--panel)}
 .results:empty{display:none}
 .results li a{display:grid;grid-template-columns:1fr auto;gap:0 10px;padding:8px 12px;text-decoration:none;border-bottom:1px solid var(--line)}
@@ -39,15 +43,22 @@ section{padding:22px 0 4px}
 .sect-h span{color:var(--ink-3);font-size:12px}
 .sect-h hr{flex:1;border:0;border-top:1px solid var(--line);margin:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;padding-bottom:12px}
-.card{border:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:var(--panel);text-decoration:none}
-.card:hover,.card:focus{outline:2px solid var(--ink);outline-offset:2px}
+.card{border:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--panel)}
+.card:has(.card-main:hover),.card:has(.card-main:focus){outline:2px solid var(--ink);outline-offset:2px}
+.card-main{display:flex;flex-direction:column;gap:6px;flex:1;text-decoration:none}
+.card-main:focus{outline:none}
 .card .n{font-weight:600;font-size:14.5px}
 .card p{margin:0;color:var(--ink-2);font-size:13px;flex:1}
+.vers{display:flex;flex-wrap:wrap;gap:4px}
+.vpill{font:11.5px var(--mono);color:var(--ink-2);background:var(--well);border:1px solid var(--line);padding:2px 6px;text-decoration:none}
+.vpill:hover,.vpill:focus{border-color:var(--ink);color:var(--ink)}
+.vpill.on{border-color:var(--signal);color:var(--ink);font-weight:500}
+.vpill.dim{display:none}
 .card .meta{display:flex;flex-wrap:wrap;gap:4px 10px;font:12px var(--mono);color:var(--ink-3);border-top:1px solid var(--line);padding-top:7px}
 .card .meta b{font-weight:500;color:var(--ink-2)}
 .warn{color:var(--signal)} .fail{color:var(--red)}
 footer{display:flex;justify-content:space-between;padding:18px 0 40px;margin-top:18px;border-top:1px solid var(--line);color:var(--ink-3);font:12px var(--mono)}
-@media (max-width:760px){.hero{grid-template-columns:1fr}}
+@media (max-width:760px){.hero,.toolbar{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -59,30 +70,66 @@ footer{display:flex;justify-content:space-between;padding:18px 0 40px;margin-top
   <div class="hero">
     <div>
       <h1>Paperboat docs</h1>
-      <p>The engine, its toolkits and the programs built on it. Every site below is built from the docs in its own repository, with one theme; the apps' Help window (F1) searches the same pages.</p>
+      <p>The engine, its toolkits and the programs built on it. Every site below is built from its repository across tracked git tags and branches, with one theme; the apps' Help window (F1) searches the same pages.</p>
     </div>
-    <div class="term"><span class="d">$</span> paperboat toolkit install <span class="s">control</span><br><span class="d">$</span> paperboat pkg install <span class="s">squero-studio-mx</span><br><span class="d"># each has a site below</span></div>
+    <div class="term"><span class="d">$</span> paperboat toolkit install <span class="s">control</span><br><span class="d">$</span> paperboat pkg install <span class="s">squero-studio-mx</span><br><span class="d"># release tags and dev tracked by git</span></div>
   </div>
-  <div class="search">
-    <input id="q" type="search" placeholder="Search all docs" aria-label="Search all docs" autocomplete="off">
-    <ul id="results" class="results" aria-live="polite"></ul>
+  <div class="toolbar">
+    <div class="search">
+      <input id="q" type="search" placeholder="Search docs" aria-label="Search docs" autocomplete="off">
+      <ul id="results" class="results" aria-live="polite"></ul>
+    </div>
+    <div class="channels" role="group" aria-label="Version filter">
+      <button type="button" data-filter="default" class="on">default</button>
+      <button type="button" data-filter="release">release</button>
+      <button type="button" data-filter="dev">dev</button>
+      <button type="button" data-filter="all">all</button>
+    </div>
   </div>
   {{sections}}
   <footer><span>built {{built}} from the paperboatlab repositories</span><a href="https://github.com/paperboatlab/paperboatlab.github.io">source</a></footer>
 </div>
 <script>
-// Search every site's help.json (the same files the apps' Help loads), on the first keystroke.
-let docs;
-const load = () => docs ??= fetch("sites.json").then((r) => r.json()).then((sites) =>
-  Promise.all(sites.filter((s) => s.help).map((s) => fetch(s.help).then((r) => r.json()).catch(() => null))))
-  .then((all) => all.filter(Boolean).flatMap((site) => site.items.map((i) => ({ ...i, site: site.title, text: i.html.replace(/<[^>]+>/g, " ").toLowerCase() }))));
+// Search help.json for the selected version channel, loaded on the first keystroke.
+let sitesCache;
+const docsByChannel = new Map();
+let activeFilter = "default";
+
+const fetchSites = () => sitesCache ??= fetch("sites.json").then((r) => r.json());
+const loadChannel = (filter) => {
+  if (!docsByChannel.has(filter)) {
+    docsByChannel.set(filter, fetchSites().then((sites) => {
+      const targets = [];
+      for (const s of sites) {
+        const vers = s.versions || [];
+        if (filter === "default") {
+          if (s.help) targets.push({ help: s.help, label: s.version ? `${s.title} · ${s.version}` : s.title });
+        } else if (filter === "all") {
+          for (const v of vers) {
+            if (v.help) targets.push({ help: v.help, label: `${s.title} · ${v.version}` });
+          }
+        } else {
+          const match = vers.find((v) => v.channel === filter && v.help) || (filter === "release" ? null : vers.find((v) => v.help));
+          if (match) targets.push({ help: match.help, label: `${s.title} · ${match.version}` });
+        }
+      }
+      return Promise.all(targets.map((t) =>
+        fetch(t.help).then((r) => r.json()).then((site) => ({ site, label: t.label })).catch(() => null)
+      )).then((all) => all.filter(Boolean).flatMap(({ site, label }) =>
+        site.items.map((i) => ({ ...i, site: label, text: i.html.replace(/<[^>]+>/g, " ").toLowerCase() }))
+      ));
+    }));
+  }
+  return docsByChannel.get(filter);
+};
+
 const q = document.getElementById("q"), results = document.getElementById("results");
-q.addEventListener("input", async () => {
+const renderSearch = async () => {
   const words = q.value.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) { results.replaceChildren(); return; }
   const has = (t) => words.every((w) => t.includes(w));
   const rank = (i) => has(i.title.toLowerCase()) ? 0 : has(`${i.title} ${i.page}`.toLowerCase()) ? 1 : has(`${i.title} ${i.summary}`.toLowerCase()) ? 2 : has(i.text) ? 3 : 9;
-  const hits = (await load()).map((i) => [rank(i), i]).filter(([r]) => r < 9).sort((a, b) => a[0] - b[0]).slice(0, 20);
+  const hits = (await loadChannel(activeFilter)).map((i) => [rank(i), i]).filter(([r]) => r < 9).sort((a, b) => a[0] - b[0]).slice(0, 20);
   results.replaceChildren(...hits.map(([, i]) => {
     const li = document.createElement("li"), a = document.createElement("a");
     a.href = i.url;
@@ -91,7 +138,20 @@ q.addEventListener("input", async () => {
     li.append(a);
     return li;
   }));
-});
+};
+q.addEventListener("input", () => void renderSearch());
+
+for (const btn of document.querySelectorAll(".channels button")) {
+  btn.addEventListener("click", () => {
+    activeFilter = btn.dataset.filter;
+    for (const b of document.querySelectorAll(".channels button")) b.classList.toggle("on", b === btn);
+    for (const pill of document.querySelectorAll(".vpill")) {
+      const show = activeFilter === "default" || activeFilter === "all" || pill.dataset.channel === activeFilter;
+      pill.classList.toggle("dim", !show);
+    }
+    if (q.value.trim()) void renderSearch();
+  });
+}
 </script>
 </body>
 </html>
