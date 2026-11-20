@@ -95,7 +95,7 @@ class BuildVersioningTests(unittest.TestCase):
                     "toolkits.toml": "",
                     "apps.toml": (
                         '[[apps]]\nname = "demo-app"\nrepo = "' + str(app_remote) + '"\n'
-                        'description = "Demo app"\nkind = "program"\n'
+                        'description = "Demo app"\nkind = "squero"\n'
                     ),
                 },
                 branch="dev",
