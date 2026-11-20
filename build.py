@@ -263,7 +263,7 @@ def sites(
     # Apps and libraries (each tracks its own git refs)
     for name, a in app_defs.items():
         repo = checkout(work, name, a["repo"], fetch=fetch)
-        kind = "program" if a.get("kind") == "program" else "library"
+        kind = "squero" if a.get("kind") == "squero" else "library"
         a_versions = discover_versions(repo, include_prereleases=include_prereleases, max_tags=max_tags)
         ver_entries = []
         for v in a_versions:
@@ -312,7 +312,7 @@ def build_site(
         "--url", url,
         "--versions-json", versions_json,
     ]
-    if site["kind"] == "program":
+    if site["kind"] == "squero":
         cmd += ["--title", site["title"]]
     if ver.get("package"):
         cmd += ["--engine", engine, "--package", ver["package"], "--blocks", str(ver["blocks"])]
@@ -372,8 +372,8 @@ def hub(all_sites: list[dict], built: str) -> str:
     groups = [
         ("engine", "the framework: manuals, SDKs, protocol", lambda s: s["kind"] == "engine"),
         ("toolkits", "blocks by package; the optional ones install per user", lambda s: s["kind"] == "toolkit"),
-        ("programs", "paperboat start <name>", lambda s: s["kind"] == "program"),
-        ("libraries", "what the programs build on", lambda s: s["kind"] == "library"),
+        ("squero", "paperboat squero start <name>", lambda s: s["kind"] == "squero"),
+        ("libraries", "what the Squero apps build on", lambda s: s["kind"] == "library"),
     ]
     body = ""
     for name, note, pick in groups:
