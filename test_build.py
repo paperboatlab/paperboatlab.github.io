@@ -136,6 +136,7 @@ class BuildVersioningTests(unittest.TestCase):
             default_html = (out / "apps/demo-app/index.html").read_text()
             self.assertIn("Release channel.", default_html)
             self.assertIn("nav-versions", default_html)
+            self.assertIn(build.SITE_ORG_URL + "docs/", default_html)  # "All docs" leads to the hub
             self.assertIn("v0.1.0", default_html)
 
             dev_html = (out / "apps/demo-app/dev/index.html").read_text()
