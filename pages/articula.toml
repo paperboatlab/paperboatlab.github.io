@@ -1,0 +1,38 @@
+# Articula's page at /articula/ (pages/app.html). Facts from articula's README and its manual (/apps/articula/).
+label = "Articula"
+line = "Acausal modelling: an OpenModelica editor with a library browser, a diagram, the model's text, a model check, and Simulate with a plot and a variables browser."
+screenshot = ""   # none yet: the page shows a placeholder frame
+tags = ["Modelica", "OpenModelica"]
+runs = "OpenModelica's omc runs as Paperboat's omc runtime, in a container: nothing to install on the host but Paperboat and the app."
+getting_started = "getting_started.html"
+
+[[feature]]
+title = "Library browser"
+text = "The Modelica Standard Library and your own packages; drag a part onto the diagram."
+
+[[feature]]
+title = "Diagram and text"
+text = "Components and connectors on a canvas, the .mo beside it. Every edit goes through omc, so the file stays OMEdit-compatible."
+
+[[feature]]
+title = "Model check"
+text = "The bar counts equations and unknowns as you edit; Check asks omc."
+
+[[feature]]
+title = "Simulate"
+text = "Run the model, then tick variables in the browser to plot them."
+
+[[step]]
+title = "Install it"
+code = "paperboat app install articula"
+text = "Installing pulls the omc runtime too."
+
+[[step]]
+title = "Open a folder"
+code = "paperboat app open articula ~/models"
+text = "Articula opens a folder of .mo files; omc sees only that folder."
+
+[[step]]
+title = "Add the standard library"
+code = "paperboat package add omc Modelica --project ~/models"
+text = "Then drag parts from Library onto the diagram, wire their ports and press Simulate (Ctrl R)."

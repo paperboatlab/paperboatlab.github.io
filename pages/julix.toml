@@ -1,0 +1,38 @@
+# Julix's page at /julix/ (pages/app.html). Facts from julix's README and its manual (/apps/julix/).
+label = "Julix"
+line = "A Julia workbench: scripts, a console, the session's variables and the figures your code draws, in one window."
+screenshot = "the Julix mockup (agent-docs rebrand/apps/julix)"
+tags = ["Julia"]
+runs = "Your code runs in Paperboat's Julia runtime, in a container: nothing to install on the host but Paperboat and the app."
+getting_started = "getting_started.html"
+
+[[feature]]
+title = "Scripts and cells"
+text = "A folder of .jl scripts. F5 runs a script, Ctrl Enter the cell at the cursor (a cell starts at a ## line), Shift Enter a line."
+
+[[feature]]
+title = "Console"
+text = "Run an expression in the same Julia session as your scripts, with what they left behind."
+
+[[feature]]
+title = "Variables"
+text = "The session's variables, their types and sizes, updated after every run."
+
+[[feature]]
+title = "Figures"
+text = "What your code shows as SVG or PNG becomes a figure, kept per run."
+
+[[step]]
+title = "Install it"
+code = "paperboat app install julix"
+text = "Installing pulls the Julia runtime too."
+
+[[step]]
+title = "Open a folder"
+code = "paperboat app open julix ~/work/tank-level"
+text = "Julix opens a folder of .jl scripts; the read-only examples are in every folder."
+
+[[step]]
+title = "Run a cell"
+code = "## A first cell\nx = range(0, 10; length = 100)\ny = sin.(x)"
+text = "Put the cursor in the cell and press Ctrl Enter; x and y appear under Variables."

@@ -1,0 +1,42 @@
+# Malachite's page at /malachite/ (pages/app.html). Facts from malachite's README and its manual (/apps/malachite/).
+label = "Malachite"
+line = "An engineering notebook: notes, runs and results in one hub, with Julia and Python cells."
+screenshot = "the Malachite mockup (agent-docs rebrand/apps/malachite)"
+tags = ["Markdown", "Julia", "Python"]
+runs = "Cells run in Paperboat's Julia and Python runtimes, in containers: nothing to install on the host but Paperboat and the app."
+getting_started = "getting_started.html"
+
+[[feature]]
+title = "Notes and links"
+text = "Markdown notes that link with [[name]] and carry their properties in a front matter."
+
+[[feature]]
+title = "Julia and Python cells"
+text = "Fenced julia and python blocks in a note run in the hub's session for that language."
+
+[[feature]]
+title = "The hub"
+text = "A plain folder in any layout you choose; Paperboat keeps its own files in one hidden .malachite folder."
+
+[[feature]]
+title = "History"
+text = "A version is kept as files change; restore one file, a folder or the whole hub."
+
+[[feature]]
+title = "Cloud folders"
+text = "Keep a hub in a folder Dropbox, OneDrive, Google Drive or iCloud Drive syncs; conflict copies are flagged."
+
+[[step]]
+title = "Install it"
+code = "paperboat app install malachite"
+text = "Installing pulls the Julia and Python runtimes too."
+
+[[step]]
+title = "Open a folder as a hub"
+code = "paperboat app open malachite ~/notes"
+text = "Any folder opens as a hub; its settings are written on first open."
+
+[[step]]
+title = "Write a note with a cell"
+code = "# Step response\nSee [[tank-level]].\n\n```julia\nlevel = 5.0 .* (1 .- exp.(-(0:10) ./ 14))\n```"
+text = "Link another note with [[name]], then run the cell."

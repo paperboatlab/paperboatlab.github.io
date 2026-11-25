@@ -4,6 +4,7 @@
 import json
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -103,7 +104,7 @@ class BuildVersioningTests(unittest.TestCase):
             # The new platform's registry lists an app with no kind: it is grouped as an app.
             init_repo(
                 work / "platform",
-                {"apps.toml": '[[apps]]\nname = "demo-platform"\nrepo = "' + str(app_remote) + '"\n'},
+                {"apps.toml": '[[apps]]\nname = "julix"\nrepo = "' + str(app_remote) + '"\n'},
                 branch="main",
             )
             # Copy real docs/site and docs/_static into the fixture paperboat repo.
@@ -151,9 +152,12 @@ class BuildVersioningTests(unittest.TestCase):
             # Every version is built with the current builder, and records its theme for the tag cache.
             self.assertEqual({v["theme"] for v in demo_entry["versions"]}, {build.theme_stamp(work / "paperboat/docs/site/build.py")})
 
-            self.assertTrue((out / "apps/demo-platform/index.html").exists())
-            self.assertEqual(next(s for s in sites_json if s["site"] == "apps/demo-platform")["kind"], "app")
+            self.assertTrue((out / "apps/julix/index.html").exists())
+            self.assertEqual(next(s for s in sites_json if s["site"] == "apps/julix")["kind"], "app")
             self.assertIn("paperboat app open", (out / "docs/index.html").read_text())
+            # A registered app with a page gets it at /<app>/, linking its manual.
+            self.assertIn('href="/apps/julix/"', (out / "julix/index.html").read_text())
+            self.assertTrue((out / "julix/tile.png").exists())
             self.assertIn("An engineering environment", (out / "index.html").read_text())
 
             versions_json = json.loads((out / "versions.json").read_text())
@@ -185,6 +189,25 @@ class BuildVersioningTests(unittest.TestCase):
             finally:
                 sys.argv = old_argv
             self.assertFalse((out / "apps/demo-app/v0.1.0/.cached-marker").exists())
+
+
+class AppPages(unittest.TestCase):
+    def test_every_page_renders_and_links_its_manual(self) -> None:
+        for content in sorted(build.PAGES.glob("*.toml")):
+            app = content.stem
+            page = build.app_page(app)
+            self.assertNotIn("{{", page, app)
+            self.assertIn(f'data-app="{app}"', page)
+            self.assertIn(f'href="/apps/{app}/"', page)
+            self.assertTrue((build.PAGES / app / "tile.png").exists(), app)
+            if tomllib.loads(content.read_text()).get("screenshot"):
+                self.assertTrue((build.PAGES / app / "light.webp").exists() and (build.PAGES / app / "dark.webp").exists(), app)
+
+    @unittest.skipUnless((Path(build.HERE) / "work/platform/.git").exists(), "needs the platform checkout (CI: work/platform)")
+    def test_every_registered_app_has_a_page(self) -> None:
+        registry = tomllib.loads(build.git(Path(build.HERE) / "work/platform", "show", "HEAD:apps.toml"))
+        for a in registry.get("apps", []):
+            self.assertTrue((build.PAGES / f"{a['name']}.toml").exists(), f"{a['name']} has no pages/{a['name']}.toml")
 
 
 if __name__ == "__main__":
