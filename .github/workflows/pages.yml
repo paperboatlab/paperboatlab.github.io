@@ -1,4 +1,4 @@
-# Builds every repository's docs across tracked git versions into one site and deploys to https://paperboatlab.github.io/.
+# Builds every repository's docs across tracked git versions into one site and deploys to https://paperboatlab.org/.
 # Pushes to `dev` and PRs verify the build; pushes to `release`, nightly runs, manual runs, and upstream
 # `docs` / `release` dispatches deploy the site. Repositories come from paperboat's toolkits.toml and apps.toml.
 name: pages
