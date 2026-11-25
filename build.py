@@ -185,6 +185,15 @@ def sites(
             for a in tomllib.loads((tree / "apps.toml").read_text()).get("apps", []):
                 app_defs.setdefault(a["name"], a)
 
+    # The new platform's app registry (paperboatlab/paperboat; the manifests above are paperboat-legacy's).
+    # ponytail: read at origin/HEAD only, not per platform version; version it when the platform tags releases.
+    platform = checkout(work, "platform", ORG + "paperboat", fetch=fetch)
+    for ref in ("refs/remotes/origin/HEAD", "HEAD"):
+        if git_ok(platform, "cat-file", "-e", f"{ref}:apps.toml"):
+            for a in tomllib.loads(git(platform, "show", f"{ref}:apps.toml")).get("apps", []):
+                app_defs.setdefault(a["name"], {**a, "kind": "app"})
+            break
+
     # Engine site
     pb_site_versions = []
     builtin_names: list[str] = []
@@ -263,7 +272,7 @@ def sites(
     # Apps and libraries (each tracks its own git refs)
     for name, a in app_defs.items():
         repo = checkout(work, name, a["repo"], fetch=fetch)
-        kind = "squero" if a.get("kind") == "squero" else "library"
+        kind = a.get("kind") if a.get("kind") in ("app", "squero") else "library"
         a_versions = discover_versions(repo, include_prereleases=include_prereleases, max_tags=max_tags)
         ver_entries = []
         for v in a_versions:
@@ -372,7 +381,8 @@ def hub(all_sites: list[dict], built: str) -> str:
     groups = [
         ("engine", "the framework: manuals, SDKs, protocol", lambda s: s["kind"] == "engine"),
         ("toolkits", "blocks by package; the optional ones install per user", lambda s: s["kind"] == "toolkit"),
-        ("squero", "paperboat squero start <name>", lambda s: s["kind"] == "squero"),
+        ("apps", "paperboat app open <name>", lambda s: s["kind"] == "app"),
+        ("squero", "legacy: paperboat squero start <name>", lambda s: s["kind"] == "squero"),
         ("libraries", "what the Squero apps build on", lambda s: s["kind"] == "library"),
     ]
     body = ""
