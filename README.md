@@ -1,13 +1,14 @@
 # paperboatlab.github.io
 
 The documentation hub for [Paperboat](https://github.com/paperboatlab/paperboat),
-<https://paperboatlab.github.io/>: every repository's documentation built into one site with one
+<https://paperboatlab.org/>: the landing page, and every repository's documentation built into one site with one
 theme, one version switcher, and one search index. No individual repository turns GitHub Pages on
 for itself, as a project site would shadow its path here.
 
 | Path | Source |
 | --- | --- |
-| `/` | the hub (`hub.html`), `sites.json`, and `versions.json` |
+| `/` | the landing (`landing.html`, built by `agent-docs/rebrand/apps/site/build.py`: copy its `index.html` here, never edit it here), `sites.json`, and `versions.json` |
+| `/docs/` | the docs hub (`hub.html`) |
 | `/<site>/` | each site's default version (`release` branch > newest `v*` tag > `dev`) |
 | `/<site>/<version>/` | versioned builds tracked from git (`release`, `v*` tags, `dev`) |
 | `/paperboat/` | `paperboat/docs/api/` |

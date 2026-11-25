@@ -150,7 +150,8 @@ class BuildVersioningTests(unittest.TestCase):
 
             self.assertTrue((out / "apps/demo-platform/index.html").exists())
             self.assertEqual(next(s for s in sites_json if s["site"] == "apps/demo-platform")["kind"], "app")
-            self.assertIn("paperboat app open", (out / "index.html").read_text())
+            self.assertIn("paperboat app open", (out / "docs/index.html").read_text())
+            self.assertIn("An engineering environment", (out / "index.html").read_text())
 
             versions_json = json.loads((out / "versions.json").read_text())
             self.assertEqual(len(versions_json["sites"]), 3)
