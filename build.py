@@ -14,6 +14,7 @@ at OUT/<site>/ for backwards-compatible links and `@paperboat/shared` Help looku
 
 import argparse
 import datetime
+import hashlib
 import html
 import io
 import json
@@ -297,12 +298,33 @@ def sites(
     return out
 
 
-def pick_builder(ver_entry: dict, fallback_builder: Path) -> Path:
+def own_builder(ver_entry: dict) -> Path | None:
+    """The builder a version shipped with, if it can build a versioned site."""
     tree = ver_entry.get("tree")
     cand = tree / "docs/site/build.py" if tree else None
-    if cand and cand.exists() and "--versions-json" in cand.read_text():
-        return cand
-    return fallback_builder
+    return cand if cand and cand.exists() and "--versions-json" in cand.read_text() else None
+
+
+def theme_stamp(builder: Path) -> str:
+    """A fingerprint of the current builder and its theme (docs/site and docs/_static): a cached tag
+    build is reused only when it was made with the same one, so a theme change reaches every version."""
+    h = hashlib.sha256()
+    for root in (builder.parent, builder.parent.parent / "_static"):
+        for f in sorted(root.rglob("*")):
+            if f.is_file() and "__pycache__" not in f.parts:
+                h.update(str(f.relative_to(root)).encode()); h.update(f.read_bytes())
+    return h.hexdigest()[:16]
+
+
+def build_version(site: dict, ver: dict, out: Path, builder: Path, *args) -> tuple[bool, str]:
+    """Every version is built with the current builder, so the whole org site wears one theme (the
+    content stays the version's own). A version the current builder cannot build falls back to its own."""
+    ok, log = build_site(site, ver, out, builder, *args)
+    own = own_builder(ver)
+    if not ok and own and own.resolve() != builder.resolve():
+        shutil.rmtree(out, ignore_errors=True)
+        ok, log = build_site(site, ver, out, own, *args)
+    return ok, log
 
 
 def build_site(
@@ -451,6 +473,7 @@ def main() -> int:
     if not fallback_builder.exists() or "--versions-json" not in fallback_builder.read_text():
         fallback_builder = fallback_tree / "docs/site/build.py"
 
+    theme = theme_stamp(fallback_builder)
     prev_sites: dict[str, dict] = {}
     if args.previous and (args.previous / "sites.json").exists():
         for entry in json.loads((args.previous / "sites.json").read_text()):
@@ -493,6 +516,7 @@ def main() -> int:
                 and prev_ver
                 and prev_ver.get("status") == "ok"
                 and prev_ver.get("commit") == v["commit"]
+                and prev_ver.get("theme") == theme
                 and prev_dir
                 and (prev_dir / "help.json").exists()
                 and prev_sites.get(s["site"], {}).get("versions")
@@ -502,9 +526,8 @@ def main() -> int:
                 status = "ok"
                 reused = True
             else:
-                builder = pick_builder(v, fallback_builder)
                 engine_bin = pick_engine(v["version"], args.engine, args.engines_dir)
-                ok, log = build_site(s, v, ver_out, builder, engine_bin, f"{org_url}{ver_rel_url}", versions_json)
+                ok, log = build_version(s, v, ver_out, fallback_builder, engine_bin, f"{org_url}{ver_rel_url}", versions_json)
                 if ok:
                     status = "ok"
                 else:
@@ -524,6 +547,7 @@ def main() -> int:
                 "commit": v["commit"],
                 "status": status,
                 "url": ver_rel_url,
+                "theme": theme,
             }
             if (ver_out / "help.json").exists():
                 help_data = json.loads((ver_out / "help.json").read_text())
@@ -547,12 +571,11 @@ def main() -> int:
             raw_chosen = doc_raw_by_ver[chosen["version"]]
             if raw_chosen.get("src") is not None:
                 root_dest = args.out / s["site"]
-                builder = pick_builder(raw_chosen, fallback_builder)
                 engine_bin = pick_engine(chosen["version"], args.engine, args.engines_dir)
                 with tempfile.TemporaryDirectory() as tmp_root:
                     tmp_out = Path(tmp_root) / "site"
-                    ok, log = build_site(
-                        s, raw_chosen, tmp_out, builder, engine_bin,
+                    ok, log = build_version(
+                        s, raw_chosen, tmp_out, fallback_builder, engine_bin,
                         f"{org_url}{s['site']}/", versions_json,
                     )
                     if ok:
