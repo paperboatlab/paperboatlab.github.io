@@ -1,0 +1,44 @@
+# Simplicial's page at /simplicial/ (pages/app.html). Facts from simplicial's README, its manual
+# (/apps/simplicial/) and its commands.toml.
+label = "Simplicial"
+line = "Visual flow, station and block-diagram simulation: a C++20 engine, stations in C++, Python or Julia, and toolkits of blocks."
+screenshot = ""   # none yet: the page shows a placeholder frame
+tags = ["C++", "Python", "Julia"]
+runs = "The engine is C++20; Python and Julia stations run in Paperboat's runtimes, in containers."
+getting_started = "getting_started.html"
+note = "Simplicial is being rebuilt on the new platform; app install works from its first release."
+
+[[feature]]
+title = "Setup"
+text = "A 2D or 3D scene of the things in a station, their settings and how they connect."
+
+[[feature]]
+title = "Flow"
+text = "A node graph of blocks that turns the setup into results: wire ports, set parameters."
+
+[[feature]]
+title = "Run"
+text = "Watch it while it runs: progress, plots and logs, and a record of every run."
+
+[[feature]]
+title = "Stations"
+text = "A station is a descriptor.toml and its domain code, in C++, Python or Julia; the page gets everything else from the engine."
+
+[[feature]]
+title = "Toolkits"
+text = "Optional packages of blocks: control, optimization, OpenCV and mesh operations."
+
+[[step]]
+title = "Install it"
+code = "paperboat app install simplicial"
+text = "It adds the station and run commands to the paperboat CLI."
+
+[[step]]
+title = "Pick a station"
+code = "paperboat station list"
+text = "The station projects you can run: examples, installed and built-in."
+
+[[step]]
+title = "Run it"
+code = "paperboat run <station>"
+text = "Builds it if needed, starts it and opens it in Simplicial."

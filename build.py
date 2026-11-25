@@ -407,6 +407,37 @@ def card(s: dict) -> str:
     )
 
 
+PAGES = HERE / "pages"
+
+
+def app_page(app: str) -> str:
+    """An app's page at /<app>/: pages/app.html filled from pages/<app>.toml (what it is, from its README
+    and manual). Every value is text; the template holds all the markup."""
+    c = tomllib.loads((PAGES / f"{app}.toml").read_text())
+    esc = html.escape
+    if c.get("screenshot"):
+        shot = ('<div class="shot"><img class="lt" src="light.webp" alt="{0} in light mode">'
+                '<img class="dk" src="dark.webp" alt="{0} in dark mode"></div>').format(esc(c["label"]))
+    else:  # no screenshot yet: an empty window frame with the tile
+        shot = '<div class="shot empty" role="img" aria-label="No screenshot yet"><img src="tile.png" alt=""></div>'
+    fill = {
+        "app": app,
+        "label": esc(c["label"]),
+        "line": esc(c["line"]),
+        "shot": shot,
+        "features": "".join(f'<div class="feat"><h3>{esc(f["title"])}</h3><p>{esc(f["text"])}</p></div>' for f in c["feature"]),
+        "tags": "".join(f"<i>{esc(t)}</i>" for t in c["tags"]),
+        "runs": esc(c["runs"]),
+        "note": f'<p class="note">{esc(c["note"])}</p>' if c.get("note") else "",
+        "steps": "".join(f'<li><h3>{esc(x["title"])}</h3><pre>{esc(x["code"])}</pre><p>{esc(x["text"])}</p></li>' for x in c["step"]),
+        "getting_started": esc(c.get("getting_started", "")),
+    }
+    out = (PAGES / "app.html").read_text()
+    for k, v in fill.items():
+        out = out.replace("{{" + k + "}}", v)
+    return out
+
+
 def hub(all_sites: list[dict], built: str) -> str:
     groups = [
         ("Apps", "paperboat app open <name>", lambda s: s["kind"] == "app"),
@@ -633,6 +664,16 @@ def main() -> int:
     shutil.copy(static_root / "tokens.css", args.out / "_hub/tokens.css")   # generated from paperboat-ui
     if (static_root / "tiles").exists():
         shutil.copytree(static_root / "tiles", args.out / "_hub/tiles")
+    # Each app's page at /<app>/ (the landing's cards open it; its Docs link opens /apps/<app>/).
+    for s in all_sites:
+        app = s["site"].removeprefix("apps/")
+        if s["kind"] != "app":
+            continue
+        if not (PAGES / f"{app}.toml").exists():
+            print(f"::error title={app} has no page::add pages/{app}.toml (and pages/{app}/tile.png)", file=sys.stderr)
+            continue
+        shutil.copytree(PAGES / app, args.out / app, dirs_exist_ok=True)
+        (args.out / app / "index.html").write_text(app_page(app))
     (args.out / ".nojekyll").touch()  # Sphinx's _static and _images folders
     print(f"{len(all_sites)} sites, {failed} failed")
     return 0
