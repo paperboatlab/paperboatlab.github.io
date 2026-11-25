@@ -17,6 +17,7 @@ import datetime
 import html
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -325,7 +326,7 @@ def build_site(
         cmd += ["--title", site["title"]]
     if ver.get("package"):
         cmd += ["--engine", engine, "--package", ver["package"], "--blocks", str(ver["blocks"])]
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "PB_ORG_URL": SITE_ORG_URL})
     return res.returncode == 0, (res.stdout + res.stderr)[-4000:]
 
 
