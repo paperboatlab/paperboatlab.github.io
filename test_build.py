@@ -100,6 +100,12 @@ class BuildVersioningTests(unittest.TestCase):
                 },
                 branch="dev",
             )
+            # The new platform's registry lists an app with no kind: it is grouped as an app.
+            init_repo(
+                work / "platform",
+                {"apps.toml": '[[apps]]\nname = "demo-platform"\nrepo = "' + str(app_remote) + '"\n'},
+                branch="main",
+            )
             # Copy real docs/site and docs/_static into the fixture paperboat repo.
             import shutil
             shutil.copytree(PAPERBOAT_ROOT / "docs/site", pb / "docs/site")
@@ -142,8 +148,12 @@ class BuildVersioningTests(unittest.TestCase):
             self.assertEqual(demo_entry["help"], "apps/demo-app/help.json")
             self.assertEqual([v["version"] for v in demo_entry["versions"]], ["release", "v0.1.0", "dev"])
 
+            self.assertTrue((out / "apps/demo-platform/index.html").exists())
+            self.assertEqual(next(s for s in sites_json if s["site"] == "apps/demo-platform")["kind"], "app")
+            self.assertIn("paperboat app open", (out / "index.html").read_text())
+
             versions_json = json.loads((out / "versions.json").read_text())
-            self.assertEqual(len(versions_json["sites"]), 2)
+            self.assertEqual(len(versions_json["sites"]), 3)
 
             # Verify --reuse-tags copies immutable tag v0.1.0 from --previous.
             shutil.copytree(out, prev)

@@ -13,7 +13,7 @@ for itself, as a project site would shadow its path here.
 | `/paperboat/` | `paperboat/docs/api/` |
 | `/toolkits/<package>/` | `paperboat/engine/toolkit/src/<package>/docs/` (built-in toolkits) |
 | `/toolkits/<name>/` | `engine/toolkit/<name>/docs/` in each optional toolkit's repository |
-| `/apps/<name>/` | `docs/` in each Squero app's repository |
+| `/apps/<name>/` | `docs/` in each app's repository: the platform's `apps.toml` (`paperboatlab/paperboat`), then the legacy Squero apps |
 
 `build.py` reads `toolkits.toml` and `apps.toml` from `paperboat`, clones the listed repositories,
 discovers tracked versions directly from git refs (`release` branch if present, SemVer `v*` tags,
