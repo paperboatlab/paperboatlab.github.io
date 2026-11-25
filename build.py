@@ -28,7 +28,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ORG = "https://github.com/paperboatlab/"
-SITE_ORG_URL = "https://paperboatlab.github.io/"
+SITE_ORG_URL = "https://paperboatlab.org/"
 SEMVER_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$")
 
 
@@ -591,7 +591,9 @@ def main() -> int:
             for s in all_sites
         ],
     }, indent=1))
-    (args.out / "index.html").write_text(hub(all_sites, built))
+    shutil.copy(HERE / "landing.html", args.out / "index.html")   # the landing; built in agent-docs/rebrand/apps/site
+    (args.out / "docs").mkdir(exist_ok=True)
+    (args.out / "docs/index.html").write_text(hub(all_sites, built))
 
     static_root = fallback_tree / "docs/_static"
     if not static_root.exists():
