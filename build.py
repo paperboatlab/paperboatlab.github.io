@@ -286,7 +286,7 @@ def sites(
             })
         out.append({
             "site": f"apps/{name}",
-            "title": name,
+            "title": a.get("label") or name,
             "kind": kind,
             "repo": a["repo"].removesuffix(".git"),
             "description": a.get("description", ""),
@@ -338,8 +338,13 @@ def pick_engine(version: str, default_engine: str, engines_dir: Path | None) -> 
     return default_engine
 
 
+REBRAND_APPS = ("simplicial", "articula", "julix", "malachite")  # their own accent and tile (the rebrand)
+
+
 def card(s: dict) -> str:
     esc = html.escape
+    app = s["site"].removeprefix("apps/")
+    app = app if s["site"].startswith("apps/") and app in REBRAND_APPS else ""
     href = f"{s['site']}/" if s.get("status") in ("ok", "stale") else s["repo"]
     status = {
         "ok": "",
@@ -369,8 +374,10 @@ def card(s: dict) -> str:
         )
         vers_html = f'<div class="vers">{pills}</div>'
     return (
-        f'<article class="card" data-channel="{esc(s.get("channel", "dev"))}">'
-        f'<a class="card-main" href="{esc(href)}"><div class="h"><span class="n">{esc(s["title"])}</span></div>'
+        f'<article class="card" data-channel="{esc(s.get("channel", "dev"))}"{f' data-app="{app}"' if app else ""}>'
+        f'<a class="card-main" href="{esc(href)}"><div class="h">'
+        f'{f'<img class="ic" src="_hub/tiles/{app}.png" alt="">' if app else ""}'
+        f'<span class="n">{esc(s["title"])}</span></div>'
         f'<p>{esc(s.get("description", ""))}</p></a>'
         f'{vers_html}'
         f'<div class="meta">{" ".join(f"<span>{m}</span>" for m in meta)}{status}</div>'
@@ -380,11 +387,11 @@ def card(s: dict) -> str:
 
 def hub(all_sites: list[dict], built: str) -> str:
     groups = [
-        ("engine", "the framework: manuals, SDKs, protocol", lambda s: s["kind"] == "engine"),
-        ("toolkits", "blocks by package; the optional ones install per user", lambda s: s["kind"] == "toolkit"),
-        ("apps", "paperboat app open <name>", lambda s: s["kind"] == "app"),
-        ("squero", "legacy: paperboat squero start <name>", lambda s: s["kind"] == "squero"),
-        ("libraries", "what the Squero apps build on", lambda s: s["kind"] == "library"),
+        ("Apps", "paperboat app open <name>", lambda s: s["kind"] == "app"),
+        ("Platform", "manuals, SDKs, protocol", lambda s: s["kind"] == "engine"),
+        ("Toolkits", "Simplicial's blocks by package", lambda s: s["kind"] == "toolkit"),
+        ("Libraries", "what the apps build on", lambda s: s["kind"] == "library"),
+        ("Squero (legacy)", "the apps before the rebrand", lambda s: s["kind"] == "squero"),
     ]
     body = ""
     for name, note, pick in groups:
@@ -600,8 +607,9 @@ def main() -> int:
     if not static_root.exists():
         static_root = pb_repo / "docs/_static"
     shutil.copytree(static_root / "fonts", args.out / "_hub/fonts")
-    for f in ("fonts.css", "favicon.svg", "logo-light.svg", "logo-dark.svg"):
-        shutil.copy(static_root / f, args.out / "_hub" / f)
+    shutil.copy(static_root / "tokens.css", args.out / "_hub/tokens.css")   # generated from paperboat-ui
+    if (static_root / "tiles").exists():
+        shutil.copytree(static_root / "tiles", args.out / "_hub/tiles")
     (args.out / ".nojekyll").touch()  # Sphinx's _static and _images folders
     print(f"{len(all_sites)} sites, {failed} failed")
     return 0
