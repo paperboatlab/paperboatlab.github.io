@@ -148,6 +148,8 @@ class BuildVersioningTests(unittest.TestCase):
             self.assertEqual(demo_entry["channel"], "release")
             self.assertEqual(demo_entry["help"], "apps/demo-app/help.json")
             self.assertEqual([v["version"] for v in demo_entry["versions"]], ["release", "v0.1.0", "dev"])
+            # Every version is built with the current builder, and records its theme for the tag cache.
+            self.assertEqual({v["theme"] for v in demo_entry["versions"]}, {build.theme_stamp(work / "paperboat/docs/site/build.py")})
 
             self.assertTrue((out / "apps/demo-platform/index.html").exists())
             self.assertEqual(next(s for s in sites_json if s["site"] == "apps/demo-platform")["kind"], "app")
@@ -171,6 +173,18 @@ class BuildVersioningTests(unittest.TestCase):
             finally:
                 sys.argv = old_argv
             self.assertTrue((out / "apps/demo-app/v0.1.0/.cached-marker").exists())
+
+            # A theme change invalidates the cached tag builds once.
+            (work / "paperboat/docs/_static/brand.css").write_text("/* changed */")
+            try:
+                sys.argv = [
+                    "build.py", "--work", str(work), "--out", str(out),
+                    "--engine", "unused", "--previous", str(prev), "--reuse-tags",
+                ]
+                self.assertEqual(build.main(), 0)
+            finally:
+                sys.argv = old_argv
+            self.assertFalse((out / "apps/demo-app/v0.1.0/.cached-marker").exists())
 
 
 if __name__ == "__main__":
