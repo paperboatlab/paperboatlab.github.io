@@ -22,6 +22,10 @@ text = "The session's variables, their types and sizes, updated after every run.
 title = "Figures"
 text = "What your code shows as SVG or PNG becomes a figure, kept per run."
 
+[[feature]]
+title = "Shared with Simplicial"
+text = "While a Simplicial station runs, the session's variables show in its Variables card, and a block's setting can bind to one."
+
 [[step]]
 title = "Install it"
 code = "paperboat app install julix"
@@ -30,7 +34,7 @@ text = "Installing pulls the Julia runtime too."
 [[step]]
 title = "Open a folder"
 code = "paperboat app open julix ~/work/tank-level"
-text = "Julix opens a folder of .jl scripts; the read-only examples are in every folder."
+text = "A folder of .jl scripts, or a Malachite hub; the read-only examples are in every one. Without one it opens on the Start page."
 
 [[step]]
 title = "Run a cell"

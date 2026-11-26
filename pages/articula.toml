@@ -2,13 +2,14 @@
 label = "Articula"
 line = "Acausal modelling: an OpenModelica editor with a library browser, a diagram, the model's text, a model check, and Simulate with a plot and a variables browser."
 screenshot = ""   # none yet: the page shows a placeholder frame
+note = "v0.1 is in beta, for Linux x86_64."
 tags = ["Modelica", "OpenModelica"]
 runs = "OpenModelica's omc runs as Paperboat's omc runtime, in a container: nothing to install on the host but Paperboat and the app."
 getting_started = "getting_started.html"
 
 [[feature]]
 title = "Library browser"
-text = "The Modelica Standard Library and your own packages; drag a part onto the diagram."
+text = "The Modelica Standard Library and your own packages; drag a part onto the diagram, F1 reads its documentation."
 
 [[feature]]
 title = "Diagram and text"
@@ -22,6 +23,14 @@ text = "The bar counts equations and unknowns as you edit; Check asks omc."
 title = "Simulate"
 text = "Run the model, then tick variables in the browser to plot them."
 
+[[feature]]
+title = "Export a station"
+text = "Download the model as a Simplicial station (.pst), or start it; its parameters become the station's settings."
+
+[[feature]]
+title = "Folders and hubs"
+text = "Work in a folder or a Malachite hub; omc sees only that workspace."
+
 [[step]]
 title = "Install it"
 code = "paperboat app install articula"
@@ -30,7 +39,7 @@ text = "Installing pulls the omc runtime too."
 [[step]]
 title = "Open a folder"
 code = "paperboat app open articula ~/models"
-text = "Articula opens a folder of .mo files; omc sees only that folder."
+text = "Articula opens a folder of .mo files, or a hub. Without one it opens on the Start page."
 
 [[step]]
 title = "Add the standard library"
