@@ -1,6 +1,6 @@
 # Builds every repository's docs across tracked git versions into one site and deploys to https://paperboatlab.org/.
 # Pushes to `dev` and PRs verify the build; pushes to `release`, nightly runs, manual runs, and upstream
-# `docs` / `release` dispatches deploy the site. Repositories come from paperboat's toolkits.toml and apps.toml.
+# `docs` / `release` dispatches deploy the site. Repositories come from Simplicial's toolkits.toml and paperboat's apps.toml.
 name: pages
 
 on:
@@ -32,11 +32,6 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: ccache
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: paperboatlab/paperboat-legacy
-          path: work/paperboat
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -49,7 +44,7 @@ jobs:
         run: python3 build.py --work work --fetch
       # The catalog tool, built with every optional toolkit in the tree, dumps each toolkit's blocks.
       - name: Overlay the optional toolkits
-        run: for d in work/toolkit-*/engine/toolkit/*; do cp -r "$d" work/paperboat/engine/toolkit/; done
+        run: for d in work/toolkit-*/engine/toolkit/*; do cp -r "$d" work/simplicial/engine/toolkit/; done
       - uses: actions/cache@v4
         with:
           path: .ccache
@@ -57,7 +52,7 @@ jobs:
           restore-keys: ccache-pages-
       - name: Build the catalog tool
         run: |
-          cmake -S work/paperboat/engine -B work/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          cmake -S work/simplicial/engine -B work/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DPAPERBOAT_BUILD_TESTS=OFF -DPAPERBOAT_WITH_SUNDIALS=OFF
           cmake --build work/build
       # The last deploy, so failed sites keep their last good build and immutable tags can be reused.
