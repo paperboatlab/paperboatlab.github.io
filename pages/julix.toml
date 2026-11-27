@@ -8,8 +8,13 @@ getting_started = "getting_started.html"
 
 [[feature]]
 title = "Scripts and cells"
-text = "A folder of .jl scripts. F5 runs a script, Ctrl Enter the cell at the cursor (a cell starts at a ## line), Shift Enter a line; each line's result shows at its end."
+text = "A folder of .jl scripts. F5 runs a script, Ctrl Enter the cell at the cursor (a cell starts at a ## line), Shift Enter a line."
 shot = "scripts"
+
+[[feature]]
+title = "Results at the line, figures by run"
+text = "Each line's result shows at its end: a sparkline for a vector, a heatmap for a matrix, a value, or a figure to open. Every figure is kept as a card under the run that drew it, with its thumbnail."
+shot = "results"
 
 [[feature]]
 title = "Console and variables"
