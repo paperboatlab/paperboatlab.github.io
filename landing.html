@@ -15,7 +15,7 @@
      The org site, https://paperboatlab.org (repo paperboatlab.github.io): this page is its / (copied there
      as landing.html; build.py writes it to /index.html), the docs hub at /docs/, each manual at
      /apps/<app>/, /paperboat/, /toolkits/<name>/. Links inside the site are root-relative. Download goes
-     to the GitHub releases until /download/ exists. Fonts are inlined (Funnel Display 600, Geist 400–600,
+     to /download/. Fonts are inlined (Funnel Display 600, Geist 400–600,
      Geist Mono 400, from paperboat-ui's @fontsource): no requests to font CDNs.
      Top bar  over the banner, transparent; sticky, and once the page scrolls it takes a frosted panel
             and a hairline. The umbrella lockup (home), Apps, Download, Docs, then GitHub and the theme
@@ -544,7 +544,7 @@ html,body{margin:0;font:var(--size-sm)/1.45 var(--font-sans);color:var(--text);b
  <a class="lk" href="/" aria-label="Paperboat, home"><img src="data:image/webp;base64,UklGRuoCAABXRUJQVlA4WAoAAAAQAAAAPwAAPwAAQUxQSAYBAAABgJtt25oqA6T+R0D/kgWgJ2yRtHzfh8tqkTGAI3XOCBqX63/RLiIYuW3jSJqtp75rf8G6K9p65pFwWSJhqRxC6TBYWIS8qbbb0t2EX9+JAb/jaN1pgzp+Jgb9PKpGRkFi2GDUwOScGPc8qV8/JwDPdasqSCAGqsoxAXms0PlE8dkps0lgrspPe4gjtAt0jCPWBc43ju9pgZcA9QrmSLiAkQgcfgzIK7+bnoP3jh75d4+u5LvzzEP34bszh+NCcws8Nznw3DZE58ao3GDWONb43Hwtud1SPqo34HtLneMTqjfVrfrmexu+N7awsw5jU711023fmx2XuKIQca1Uqc+uo23rnmgBVlA4IL4BAADwDACdASpAAEAAPj0aikMiIaEY+qwAIAPEtIBqDAVHLzZJELEOG9q6a3a9jcJC5QxLIDVS0HpiXKow7ekzSxOAD8kWHej5dSA/iLVyLfpAjuffZ3WTixUqGBzhR3CUe/jp++4Vj1RP+gHtrC+SCv6AAP7LXOlH5vGH7aG1EX1c3mZX3rx/esRYA2LzRO5k/rkE2LtBF0uwOROJ1b/DTqLSxe3vbtgXJAA3bOokvjcuCk/dZKLsKEuN6c7XsW1K9WDMfKEvDW+jgve/Dw/A/R9+OLACor/8L94p9//at96rTvAd/NMvp5VOOl4Yjr/+cW3jOAIhDgnSKfC9J+bhsOFsxbJ//L+UN4Qm/bEwhnGT7bux65NLqUNq07XcMSAIINsyfgroXyL2fmlU4LyxjzMhwZzOKvMaf1sc/qxzXI4uPsOMg5Csou2unO2Aoe1ErojF7mmHdR3hGdL838U9PRfG/qYoI34ZOUxTxql3Zf9SJj38KG5ZT8Tl0H23JGNgcb3ZwI8rAh1/8dBIdr1Cpia0Y5fcPPtFeCPN1pXx8d8DXz+AB+S8OULYvcLXAEWDf6p4pxOfwbnCC+k6XqRgAA==" alt=""><b>Paperboat</b></a>
  <nav aria-label="Site">
   <a href="#apps">Apps</a>
-  <a class="dl" href="https://github.com/paperboatlab/paperboat/releases">Download</a>
+  <a class="dl" href="/download/">Download</a>
   <a href="/docs/">Docs</a>
  </nav>
  <div class="tools">
@@ -623,7 +623,7 @@ html,body{margin:0;font:var(--size-sm)/1.45 var(--font-sans);color:var(--text);b
    <li><a href="/julix/">Julix</a></li><li><a href="/malachite/">Malachite</a></li>
   </ul></div>
   <div><h4>Platform</h4><ul>
-   <li><a href="https://github.com/paperboatlab/paperboat/releases">Download</a></li>
+   <li><a href="/download/">Download</a></li>
    <li><a href="/paperboat/">The paperboat CLI</a></li><li><a href="/docs/">All docs</a></li>
   </ul></div>
   <div><h4>Project</h4><ul>

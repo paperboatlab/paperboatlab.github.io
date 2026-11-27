@@ -1,0 +1,89 @@
+<!-- /download/: the Launcher and the packages of the newest paperboat release. build.py (download_page) puts
+     this <main> in app.html's chrome. The buttons are filled in the browser from the GitHub API, so a new
+     release shows without a rebuild; until then (or offline) they open the releases page. A new target is
+     one line in TARGETS. -->
+<style>
+.dls{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-4)}
+.dl{padding:20px;background:var(--surface-panel);border:1px solid var(--line);border-radius:var(--radius-xl);display:grid;gap:var(--space-3);align-content:start}
+.dl h3{margin:0;font:600 18px/1.2 var(--font-display);letter-spacing:-.01em}
+.dl h3 small{display:block;margin-top:4px;font:var(--size-sm)/1.4 var(--font-sans);color:var(--text-muted);letter-spacing:0}
+.dl p{margin:0;font:var(--size-sm)/1.55 var(--font-sans);color:var(--text-muted)}
+.dl .acts{margin-top:0}
+.dl .k small{margin-left:8px;font:var(--size-2xs)/1 var(--font-mono);color:var(--text-muted)}
+.dl pre{margin:0;background:var(--surface-screen);color:var(--text-on-screen);font:var(--size-xs)/1.7 var(--font-mono);padding:12px 16px;border-radius:var(--radius-lg);overflow-x:auto;white-space:pre}
+.dl.soon{background:none;border-style:dashed}
+.rel{margin:0 0 var(--space-4);font:var(--size-sm)/1.5 var(--font-sans);color:var(--text-muted)}
+.rel a{text-underline-offset:3px}
+</style>
+<main class="wrap">
+  <div class="hero">
+    <img class="tile" src="/_hub/tiles/paperboat.png" alt="">
+    <div>
+      <h1><span>Paperboat</span> Launcher</h1>
+      <p>One window for Paperboat: install and open the apps, keep their runtimes and packages, and set up your hubs. It comes with the paperboat CLI.</p>
+      <div class="acts">
+        <a class="k pri" href="#get">Download</a>
+        <a class="k qui" href="/paperboat/">Read the docs</a>
+        <a class="src" href="https://github.com/paperboatlab/paperboat">Source on GitHub</a>
+      </div>
+    </div>
+  </div>
+  <div class="shot empty" role="img" aria-label="The Launcher: picture to come"><img src="/_hub/tiles/paperboat.png" alt=""></div>
+
+  <section aria-labelledby="get"><h2 id="get">Download</h2>
+    <p class="rel" id="rel">The newest release: <a href="https://github.com/paperboatlab/paperboat/releases">on GitHub</a>.</p>
+    <div class="dls" id="dls">
+      <div class="dl"><h3>Linux<small>x86_64 · Fedora, RHEL (.rpm)</small></h3>
+        <div class="acts"><a class="k pri" href="https://github.com/paperboatlab/paperboat/releases">Launcher</a>
+          <a class="k qui" href="https://github.com/paperboatlab/paperboat/releases">CLI</a></div></div>
+      <div class="dl"><h3>macOS<small>Apple silicon (.pkg)</small></h3>
+        <div class="acts"><a class="k pri" href="https://github.com/paperboatlab/paperboat/releases">CLI</a></div></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="then"><h2 id="then">Then install the apps</h2>
+    <ol class="steps">
+      <li><h3>Pick an app</h3><pre>paperboat app install julix</pre><p>Or from the Launcher's Apps page. Installing pulls the app's runtimes: they run in containers, so podman or docker is the only other thing the host needs.</p></li>
+      <li><h3>Open it</h3><pre>paperboat app open julix ~/work</pre><p>Each app's page says what it does: <a href="/simplicial/">Simplicial</a>, <a href="/articula/">Articula</a>, <a href="/julix/">Julix</a>, <a href="/malachite/">Malachite</a>.</p></li>
+    </ol>
+  </section>
+</main>
+<script>
+// The newest release (prereleases too) and, per target, its files. Each asset: [button, file name pattern].
+const TARGETS = [
+  { name: "Linux", sub: "x86_64 · Fedora, RHEL (.rpm)", assets: [["Launcher", /^paperboat-launcher-.*\.x86_64\.rpm$/], ["CLI", /^paperboat-cli-.*\.x86_64\.rpm$/], ["Devel", /^paperboat-devel-.*\.rpm$/]],
+    how: "sudo dnf install \\\n  ./paperboat-launcher-*.rpm \\\n  ./paperboat-cli-*.rpm \\\n  ./paperboat-devel-*.rpm",
+    note: "The Launcher needs the CLI, and the CLI the devel package: install the three together." },
+  { name: "macOS", sub: "Apple silicon (.pkg)", assets: [["CLI", /^paperboat-.*-Darwin\.pkg$/]],
+    note: "The paperboat CLI and paperboatd. The Launcher for macOS comes later." },
+  { name: "Linux", sub: "Debian, Ubuntu (.deb)", assets: [["Launcher", /\.deb$/]] },
+  { name: "Windows", sub: "x86_64", assets: [["Launcher", /\.(exe|msi)$/]] },
+];
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+const mb = (n) => n >= 1e6 ? `${(n / 1e6).toFixed(0)} MB` : `${Math.ceil(n / 1e3)} kB`;
+fetch("https://api.github.com/repos/paperboatlab/paperboat/releases?per_page=10").then((r) => r.ok ? r.json() : Promise.reject(r.status)).then((all) => {
+  const rel = all.find((x) => !x.draft);
+  if (!rel) return;
+  const day = new Date(rel.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const p = document.getElementById("rel"); p.textContent = `${rel.tag_name} · ${day}${rel.prerelease ? " · beta" : ""} · `;
+  const a = el("a", "", "every file and the notes"); a.href = rel.html_url; p.append(a);
+  const box = document.getElementById("dls"); box.replaceChildren();
+  const soon = [];
+  for (const t of TARGETS) {
+    const files = t.assets.map(([label, re]) => [label, rel.assets.find((f) => re.test(f.name))]).filter(([, f]) => f);
+    if (!files.length) { soon.push(`${t.name}, ${t.sub}`); continue; }
+    const card = el("div", "dl"), h = el("h3", "", t.name); h.append(el("small", "", t.sub)); card.append(h);
+    const acts = el("div", "acts");
+    files.forEach(([label, f], i) => { const k = el("a", `k ${i ? "qui" : "pri"}`, label); k.href = f.browser_download_url; k.title = f.name; k.append(el("small", "", mb(f.size))); acts.append(k); });
+    card.append(acts);
+    if (t.how) card.append(el("pre", "", t.how));
+    if (t.note) card.append(el("p", "", t.note));
+    box.append(card);
+  }
+  if (soon.length) {
+    const card = el("div", "dl soon"); card.append(el("h3", "", "Coming"), el("p", "", `Not packaged yet: ${soon.join("; ")}.`));
+    const a = el("a", "src", "Follow the packaging issues"); a.href = "https://github.com/paperboatlab/paperboat/issues?q=is%3Aissue+label%3Apackaging"; card.append(a);
+    box.append(card);
+  }
+}).catch(() => {});   // offline or rate-limited: the static buttons open the releases page
+</script>
