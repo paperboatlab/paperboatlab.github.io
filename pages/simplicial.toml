@@ -37,7 +37,7 @@ text = "Optional packages of blocks: control, optimization, OpenCV and mesh oper
 
 [[step]]
 title = "Install it"
-code = "paperboat app install simplicial"
+code = "paperboat channel beta\npaperboat app install simplicial"
 text = "It adds the station and run commands to the paperboat CLI."
 
 [[step]]

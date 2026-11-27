@@ -37,7 +37,7 @@ text = "While a Simplicial station runs, the session's variables show in its Var
 
 [[step]]
 title = "Install it"
-code = "paperboat app install julix"
+code = "paperboat channel beta\npaperboat app install julix"
 text = "Installing pulls the Julia runtime too."
 
 [[step]]

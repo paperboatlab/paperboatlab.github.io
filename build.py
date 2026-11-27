@@ -694,7 +694,7 @@ def main() -> int:
             continue
         shutil.copytree(PAGES / app, args.out / app, dirs_exist_ok=True)
         (args.out / app / "index.html").write_text(app_page(app))
-    (args.out / "download").mkdir(exist_ok=True)
+    shutil.copytree(PAGES / "download", args.out / "download", dirs_exist_ok=True)   # its pictures
     (args.out / "download/index.html").write_text(download_page())
     (args.out / ".nojekyll").touch()  # Sphinx's _static and _images folders
     print(f"{len(all_sites)} sites, {failed} failed")

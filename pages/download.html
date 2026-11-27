@@ -14,6 +14,10 @@
 .dl.soon{background:none;border-style:dashed}
 .rel{margin:0 0 var(--space-4);font:var(--size-sm)/1.5 var(--font-sans);color:var(--text-muted)}
 .rel a{text-underline-offset:3px}
+.way{margin:var(--space-6) 0 var(--space-4);font:600 clamp(20px,2vw,24px)/1.2 var(--font-display);letter-spacing:-.01em}
+.way-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:clamp(24px,4vw,48px);align-items:start}
+.way-grid .shot{margin-top:0}
+@media (max-width:820px){.way-grid{grid-template-columns:1fr}}
 </style>
 <main class="wrap">
   <div class="hero">
@@ -42,8 +46,21 @@
   </section>
 
   <section aria-labelledby="then"><h2 id="then">Then install the apps</h2>
+    <p class="note">The apps are in beta for now: set the update channel to Beta first, in the Launcher's Settings › Launcher › Update channel, or with <code>paperboat channel beta</code>. An app installs with its runtimes, which run in containers, so podman or docker is the only other thing the host needs.</p>
+    <h3 class="way">In the Launcher</h3>
+    <div class="way-grid">
+      <ol class="steps">
+        <li><h3>Open the Launcher</h3><p>Paperboat Launcher, in your applications menu.</p></li>
+        <li><h3>Install an app</h3><p>On the Apps page, press Install on its card. The card follows the download, then says installed.</p></li>
+        <li><h3>Open it</h3><p>Press Open on the card: the app starts in its own window, on its Start page, where you pick a folder or a hub.</p></li>
+      </ol>
+      <div class="shot"><img class="lt" src="launcher-apps-light.webp" alt="The Launcher's Apps page, an Install key on each app's card">
+        <img class="dk" src="launcher-apps-dark.webp" alt="The Launcher's Apps page, an Install key on each app's card"></div>
+    </div>
+    <h3 class="way">With the CLI</h3>
     <ol class="steps">
-      <li><h3>Pick an app</h3><pre>paperboat app install julix</pre><p>Or from the Launcher's Apps page. Installing pulls the app's runtimes: they run in containers, so podman or docker is the only other thing the host needs.</p></li>
+      <li><h3>Install an app</h3><pre>paperboat channel beta
+paperboat app install julix</pre><p>The Launcher's Apps page shows it installed too.</p></li>
       <li><h3>Open it</h3><pre>paperboat app open julix ~/work</pre><p>Each app's page says what it does: <a href="/simplicial/">Simplicial</a>, <a href="/articula/">Articula</a>, <a href="/julix/">Julix</a>, <a href="/malachite/">Malachite</a>.</p></li>
     </ol>
   </section>
@@ -71,7 +88,7 @@ fetch("https://api.github.com/repos/paperboatlab/paperboat/releases?per_page=10"
   const soon = [];
   for (const t of TARGETS) {
     const files = t.assets.map(([label, re]) => [label, rel.assets.find((f) => re.test(f.name))]).filter(([, f]) => f);
-    if (!files.length) { soon.push(`${t.name}, ${t.sub}`); continue; }
+    if (!files.length) { soon.push(`${t.name}: ${t.sub}`); continue; }
     const card = el("div", "dl"), h = el("h3", "", t.name); h.append(el("small", "", t.sub)); card.append(h);
     const acts = el("div", "acts");
     files.forEach(([label, f], i) => { const k = el("a", `k ${i ? "qui" : "pri"}`, label); k.href = f.browser_download_url; k.title = f.name; k.append(el("small", "", mb(f.size))); acts.append(k); });
