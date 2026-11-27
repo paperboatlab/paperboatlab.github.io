@@ -1,0 +1,11 @@
+{#- The tokens switch on data-theme and pick the accent from data-app (paperboat-ui tokens.css); Shibuya
+    switches on html.light / html.dark, so mirror its class, now and on every toggle. -#}
+<script>
+(function () {
+  var r = document.documentElement;
+  {%- if pb_app %} r.dataset.app = "{{ pb_app }}";{% endif %}
+  var sync = function () { r.dataset.theme = r.classList.contains("dark") ? "dark" : "light"; };
+  sync();
+  new MutationObserver(sync).observe(r, { attributes: true, attributeFilter: ["class"] });
+})();
+</script>

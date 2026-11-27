@@ -3,6 +3,7 @@
 
 import json
 import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
@@ -10,7 +11,6 @@ from pathlib import Path
 
 import build
 
-PAPERBOAT_ROOT = Path(__file__).resolve().parent.parent / "paperboat"
 
 
 def git(repo: Path, *args: str) -> str:
@@ -68,7 +68,7 @@ class BuildVersioningTests(unittest.TestCase):
             self.assertEqual([v["version"] for v in vers], ["v0.1.0-alpha.2", "dev"])
             self.assertEqual(build.default_version(vers)["version"], "v0.1.0-alpha.2")
 
-    @unittest.skipUnless((PAPERBOAT_ROOT / "docs/site/build.py").exists(), "requires sibling paperboat checkout")
+    @unittest.skipUnless(subprocess.run([sys.executable, "-c", "import sphinx, shibuya"]).returncode == 0, "needs sphinx and shibuya")
     def test_end_to_end_multi_version_build_and_cache_reuse(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_str:
             tmp = Path(tmp_str)
@@ -87,33 +87,20 @@ class BuildVersioningTests(unittest.TestCase):
             (app_remote / "docs/index.rst").write_text("Demo\n====\n\nDev channel.\n")
             git(app_remote, "commit", "-am", "dev channel")
 
-            # Create a minimal paperboat repo using the real docs/site builder and _static assets.
-            pb = work / "paperboat"
-            init_repo(
-                pb,
-                {
-                    "docs/api/index.rst": "Engine\n======\n\nEngine docs.\n",
-                    "toolkits.toml": "",
-                    "apps.toml": (
-                        '[[apps]]\nname = "demo-app"\nrepo = "' + str(app_remote) + '"\n'
-                        'description = "Demo app"\nkind = "squero"\n'
-                    ),
-                },
-                branch="dev",
-            )
-            # The new platform's registry lists an app with no kind: it is grouped as an app.
+            # A minimal Simplicial (the engine repo): no optional toolkits, no built-in toolkit docs.
+            init_repo(work / "simplicial", {"toolkits.toml": ""}, branch="dev")
+            # The platform's registry: every app in it is grouped as an app.
             init_repo(
                 work / "platform",
-                {"apps.toml": '[[apps]]\nname = "julix"\nrepo = "' + str(app_remote) + '"\n'},
+                {"apps.toml": "".join(
+                    f'[[apps]]\nname = "{n}"\nrepo = "{app_remote}"\ndescription = "Demo app"\n' for n in ("demo-app", "julix"))},
                 branch="main",
             )
-            # Copy real docs/site and docs/_static into the fixture paperboat repo.
+            # The real builder and theme, copied so the theme change below leaves this repository alone.
             import shutil
-            shutil.copytree(PAPERBOAT_ROOT / "docs/site", pb / "docs/site")
-            shutil.copytree(PAPERBOAT_ROOT / "docs/_static", pb / "docs/_static")
-            git(pb, "add", ".")
-            git(pb, "commit", "-q", "-m", "add site builder")
-            git(pb, "tag", "v0.1.0")
+            shutil.copytree(build.DOCS, tmp / "docs")
+            self.addCleanup(setattr, build, "DOCS", build.DOCS)
+            build.DOCS = tmp / "docs"
 
             # Run build.py via main()
             import sys
@@ -126,9 +113,6 @@ class BuildVersioningTests(unittest.TestCase):
                 sys.argv = old_argv
 
             # Verify default site, versioned sites, Shibuya switcher, sites.json, and versions.json.
-            self.assertTrue((out / "paperboat/index.html").exists())
-            self.assertTrue((out / "paperboat/v0.1.0/index.html").exists())
-            self.assertTrue((out / "paperboat/dev/index.html").exists())
             self.assertTrue((out / "apps/demo-app/index.html").exists())
             self.assertTrue((out / "apps/demo-app/release/index.html").exists())
             self.assertTrue((out / "apps/demo-app/v0.1.0/index.html").exists())
@@ -150,7 +134,7 @@ class BuildVersioningTests(unittest.TestCase):
             self.assertEqual(demo_entry["help"], "apps/demo-app/help.json")
             self.assertEqual([v["version"] for v in demo_entry["versions"]], ["release", "v0.1.0", "dev"])
             # Every version is built with the current builder, and records its theme for the tag cache.
-            self.assertEqual({v["theme"] for v in demo_entry["versions"]}, {build.theme_stamp(work / "paperboat/docs/site/build.py")})
+            self.assertEqual({v["theme"] for v in demo_entry["versions"]}, {build.theme_stamp(build.DOCS / "site/build.py")})
 
             self.assertTrue((out / "apps/julix/index.html").exists())
             self.assertEqual(next(s for s in sites_json if s["site"] == "apps/julix")["kind"], "app")
@@ -161,7 +145,7 @@ class BuildVersioningTests(unittest.TestCase):
             self.assertIn("An engineering environment", (out / "index.html").read_text())
 
             versions_json = json.loads((out / "versions.json").read_text())
-            self.assertEqual(len(versions_json["sites"]), 3)
+            self.assertEqual(len(versions_json["sites"]), 2)
 
             # Verify --reuse-tags copies immutable tag v0.1.0 from --previous.
             shutil.copytree(out, prev)
@@ -179,7 +163,7 @@ class BuildVersioningTests(unittest.TestCase):
             self.assertTrue((out / "apps/demo-app/v0.1.0/.cached-marker").exists())
 
             # A theme change invalidates the cached tag builds once.
-            (work / "paperboat/docs/_static/brand.css").write_text("/* changed */")
+            (build.DOCS / "_static/brand.css").write_text("/* changed */")
             try:
                 sys.argv = [
                     "build.py", "--work", str(work), "--out", str(out),

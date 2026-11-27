@@ -11,17 +11,19 @@ for itself, as a project site would shadow its path here.
 | `/docs/` | the docs hub (`hub.html`) |
 | `/<site>/` | each site's default version (`release` branch > newest `v*` tag > `dev`) |
 | `/<site>/<version>/` | versioned builds tracked from git (`release`, `v*` tags, `dev`) |
-| `/paperboat/` | `paperboat/docs/api/` |
-| `/toolkits/<package>/` | `paperboat/engine/toolkit/src/<package>/docs/` (built-in toolkits) |
+| `/toolkits/<package>/` | `simplicial/engine/toolkit/src/<package>/docs/` (built-in toolkits) |
 | `/toolkits/<name>/` | `engine/toolkit/<name>/docs/` in each optional toolkit's repository |
 | `/<app>/` | each app's page, what it is: `pages/app.html` filled from `pages/<app>.toml` (and `pages/<app>/`: the tile, screenshots). A `[[feature]]` with `shot = "<name>"` is shown large over `<name>-light.webp`/`-dark.webp`, a real 1440x900 window. A new app is a content file, never a new template; every app in the platform's `apps.toml` needs one |
 | `/download/` | the Launcher and the newest release's packages, per target: `pages/download.html` in `pages/app.html`'s chrome; the buttons are filled in the browser from the GitHub API, so a release needs no rebuild |
-| `/apps/<name>/` | `docs/` in each app's repository: the platform's `apps.toml` (`paperboatlab/paperboat`), then the legacy Squero apps |
+| `/apps/<name>/` | `docs/` in each app's repository: the platform's `apps.toml` (`paperboatlab/paperboat`) |
 
-`build.py` reads `toolkits.toml` and `apps.toml` from `paperboat`, clones the listed repositories,
-discovers tracked versions directly from git refs (`release` branch if present, SemVer `v*` tags,
-and `dev`), and builds each version with `paperboat/docs/site/build.py` (producing HTML and the
-`help.json` bundle used by each app's Help window).
+`build.py` reads `toolkits.toml` from `simplicial` and `apps.toml` from `paperboat`, clones the listed
+repositories, discovers tracked versions directly from git refs (`release` branch if present, SemVer
+`v*` tags, and `dev`), and builds each version with this repository's `docs/site/build.py` and its theme
+in `docs/_static/` (producing HTML and the `help.json` bundle used by each app's Help window). No
+private repository is read: the -legacy repositories are private, and their manuals are no longer
+published. `tokens.css` is generated from paperboat-ui (checked out beside this repository): run
+`python3 docs/gen_tokens.py` when its tokens change (`--check` says whether they did).
 
 ## Build
 
@@ -29,14 +31,14 @@ With the repositories cloned under `work/`:
 
 ```sh
 python3 build.py --work work --fetch
-python3 build.py --work work --out _site --engine ../paperboat/engine/build/tools/paperboat-catalog
+python3 build.py --work work --out _site --engine ../simplicial/engine/build/tools/paperboat-catalog
 python3 -m http.server -d _site
 ```
 
 Run the unit tests:
 
 ```sh
-python3 -m unittest test_build.py
+python3 -m unittest test_build.py      # the end-to-end build needs: pip install sphinx shibuya
 ```
 
 ## CI and releasing

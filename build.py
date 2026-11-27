@@ -4,12 +4,13 @@
     python3 build.py --work WORK --fetch                 # clone/fetch what the manifests name
     python3 build.py --work WORK --out OUT --engine paperboat-catalog [--previous PREV]
 
-WORK holds a paperboat checkout (WORK/paperboat); every other repository is cloned next to it
-from the paperboat manifests (toolkits.toml, apps.toml), so this repository keeps no list of its
-own. Versions for every repository are tracked directly from git refs (`release` branch if present,
-`v*` release tags, and `dev`). Each site/version is built by paperboat's docs/site/build.py into
+WORK holds a Simplicial checkout (WORK/simplicial: the engine, its built-in toolkits and toolkits.toml);
+every other repository is cloned next to it from the manifests (Simplicial's toolkits.toml, the
+platform's apps.toml), so this repository keeps no list of its own. Versions for every repository are
+tracked directly from git refs (`release` branch if present, `v*` release tags, and `dev`). Each
+site/version is built by docs/site/build.py (here, with its theme in docs/_static) into
 OUT/<site>/<version>/, and each site's default version (release > latest tag > dev) is also served
-at OUT/<site>/ for backwards-compatible links and `@paperboat/shared` Help lookups.
+at OUT/<site>/ for backwards-compatible links and Help lookups.
 """
 
 import argparse
@@ -29,6 +30,7 @@ import tomllib
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+DOCS = HERE / "docs"   # the docs builder (site/) and its theme (_static/); tokens.css from docs/gen_tokens.py
 ORG = "https://github.com/paperboatlab/"
 SITE_ORG_URL = "https://paperboatlab.org/"
 SEMVER_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$")
@@ -162,33 +164,29 @@ def sites(
     include_prereleases: bool = False,
     max_tags: int = 0,
 ) -> list[dict]:
-    """Every site and its git-tracked versions, from the manifests in paperboat."""
-    pb_repo = work / "paperboat"
-    if fetch and git_ok(pb_repo, "remote", "get-url", "origin"):
-        subprocess.run(
-            ["git", "-C", str(pb_repo), "fetch", "-q", "--tags", "--prune", "origin", "+refs/heads/*:refs/remotes/origin/*"],
-            check=False,
-        )
+    """Every site and its git-tracked versions, from Simplicial's toolkits.toml and the platform's apps.toml."""
+    pb_repo = checkout(work, "simplicial", ORG + "simplicial", fetch=fetch)
 
     pb_versions = discover_versions(pb_repo, include_prereleases=include_prereleases, max_tags=max_tags)
     trees_root = work / ".trees"
 
-    # Extract each tracked paperboat ref once so manifests and built-in toolkits come from that exact version.
+    # Extract each tracked Simplicial ref once so toolkits.toml and the built-in toolkits come from that version.
     pb_trees: dict[str, Path] = {}
     toolkit_defs: dict[str, dict] = {}
-    app_defs: dict[str, dict] = {}
+    builtin_names: list[str] = []
     for v in pb_versions:
-        tree = materialize_ref(pb_repo, v["ref"], trees_root / "paperboat" / safe_dir_name(v["version"]))
+        tree = materialize_ref(pb_repo, v["ref"], trees_root / "simplicial" / safe_dir_name(v["version"]))
         pb_trees[v["version"]] = tree
         if (tree / "toolkits.toml").exists():
             for t in tomllib.loads((tree / "toolkits.toml").read_text()).get("toolkits", []):
                 toolkit_defs.setdefault(t["name"], t)
-        if (tree / "apps.toml").exists():
-            for a in tomllib.loads((tree / "apps.toml").read_text()).get("apps", []):
-                app_defs.setdefault(a["name"], a)
+        for docs in sorted((tree / "engine/toolkit/src").glob("*/docs")):
+            if docs.parent.name not in builtin_names:
+                builtin_names.append(docs.parent.name)
 
-    # The new platform's app registry (paperboatlab/paperboat; the manifests above are paperboat-legacy's).
+    # The platform's app registry (paperboatlab/paperboat).
     # ponytail: read at origin/HEAD only, not per platform version; version it when the platform tags releases.
+    app_defs: dict[str, dict] = {}
     platform = checkout(work, "platform", ORG + "paperboat", fetch=fetch)
     for ref in ("refs/remotes/origin/HEAD", "HEAD"):
         if git_ok(platform, "cat-file", "-e", f"{ref}:apps.toml"):
@@ -196,34 +194,9 @@ def sites(
                 app_defs.setdefault(a["name"], {**a, "kind": "app"})
             break
 
-    # Engine site
-    pb_site_versions = []
-    builtin_names: list[str] = []
-    seen_builtins: set[str] = set()
-    for v in pb_versions:
-        tree = pb_trees[v["version"]]
-        src = tree / "docs/api"
-        pb_site_versions.append({
-            **v,
-            "tree": tree,
-            "src": src if (src / "index.rst").exists() else None,
-        })
-        if (tree / "engine/toolkit/src").exists():
-            for docs in sorted((tree / "engine/toolkit/src").glob("*/docs")):
-                pkg = docs.parent.name
-                if pkg not in seen_builtins:
-                    seen_builtins.add(pkg)
-                    builtin_names.append(pkg)
+    out: list[dict] = []
 
-    out: list[dict] = [{
-        "site": "paperboat",
-        "title": "Paperboat",
-        "kind": "engine",
-        "repo": ORG + "paperboat",
-        "versions": pb_site_versions,
-    }]
-
-    # Built-in toolkits (versioned with paperboat)
+    # Built-in toolkits (versioned with Simplicial)
     for pkg in sorted(builtin_names):
         pkg_versions = []
         for v in pb_versions:
@@ -241,7 +214,7 @@ def sites(
             "title": pkg,
             "kind": "toolkit",
             "builtin": True,
-            "repo": ORG + "paperboat",
+            "repo": ORG + "simplicial",
             "versions": pkg_versions,
         })
 
@@ -274,7 +247,7 @@ def sites(
     # Apps and libraries (each tracks its own git refs)
     for name, a in app_defs.items():
         repo = checkout(work, name, a["repo"], fetch=fetch)
-        kind = a.get("kind") if a.get("kind") in ("app", "squero") else "library"
+        kind = "app" if a.get("kind") == "app" else "library"
         a_versions = discover_versions(repo, include_prereleases=include_prereleases, max_tags=max_tags)
         ver_entries = []
         for v in a_versions:
@@ -344,8 +317,6 @@ def build_site(
         "--url", url,
         "--versions-json", versions_json,
     ]
-    if site["kind"] == "squero":
-        cmd += ["--title", site["title"]]
     if ver.get("package"):
         cmd += ["--engine", engine, "--package", ver["package"], "--blocks", str(ver["blocks"])]
     res = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "PB_ORG_URL": SITE_ORG_URL})
@@ -461,14 +432,14 @@ def download_page() -> str:
 def hub(all_sites: list[dict], built: str) -> str:
     groups = [
         ("Apps", "paperboat app open <name>", lambda s: s["kind"] == "app"),
-        ("Platform", "manuals, SDKs, protocol", lambda s: s["kind"] == "engine"),
         ("Toolkits", "Simplicial's blocks by package", lambda s: s["kind"] == "toolkit"),
         ("Libraries", "what the apps build on", lambda s: s["kind"] == "library"),
-        ("Squero (legacy)", "the apps before the rebrand", lambda s: s["kind"] == "squero"),
     ]
     body = ""
     for name, note, pick in groups:
         members = [s for s in all_sites if pick(s)]
+        if not members:
+            continue
         body += (
             f'<section><div class="sect-h"><h2>{name}</h2><span>{len(members)} · {html.escape(note)}</span><hr></div>'
             f'<div class="grid">{"".join(card(s) for s in members)}</div></section>'
@@ -513,16 +484,7 @@ def main() -> int:
     if not (args.out and args.engine):
         ap.error("--out and --engine are needed to build")
 
-    pb_repo = args.work / "paperboat"
-    pb_versions = discover_versions(pb_repo, include_prereleases=args.include_prereleases, max_tags=args.max_tags)
-    pb_dev = next((v for v in pb_versions if v["version"] == "dev"), None) or default_version(pb_versions)
-    fallback_tree = (
-        materialize_ref(pb_repo, pb_dev["ref"], args.work / ".trees/paperboat" / safe_dir_name(pb_dev["version"]))
-        if pb_dev else pb_repo
-    )
-    fallback_builder = pb_repo / "docs/site/build.py"
-    if not fallback_builder.exists() or "--versions-json" not in fallback_builder.read_text():
-        fallback_builder = fallback_tree / "docs/site/build.py"
+    fallback_builder = DOCS / "site/build.py"
 
     theme = theme_stamp(fallback_builder)
     prev_sites: dict[str, dict] = {}
@@ -677,9 +639,7 @@ def main() -> int:
     (args.out / "docs").mkdir(exist_ok=True)
     (args.out / "docs/index.html").write_text(hub(all_sites, built))
 
-    static_root = fallback_tree / "docs/_static"
-    if not static_root.exists():
-        static_root = pb_repo / "docs/_static"
+    static_root = DOCS / "_static"
     shutil.copytree(static_root / "fonts", args.out / "_hub/fonts")
     shutil.copy(static_root / "tokens.css", args.out / "_hub/tokens.css")   # generated from paperboat-ui
     if (static_root / "tiles").exists():

@@ -1,0 +1,122 @@
+/* The rebrand on the docs sites: Shibuya's variables mapped onto the tokens (tokens.css, generated
+   from paperboat-ui), and the landing's top bar and footer (agent-docs/rebrand/apps/site). Loaded after
+   the theme. The accent is the site's own (data-app on <html>, set in _templates/partials/extra-head.html);
+   the platform, the toolkits and the hub stay slate. Use roles, never hex. */
+
+html.light, html.dark {
+  --sy-c-background: var(--surface-ground);
+  --sy-c-background-contrast: var(--surface-panel);
+  --sy-c-background-dropback: var(--scrim);
+  --sy-c-surface: var(--surface-panel);
+  --sy-c-overlay: var(--scrim);
+  --sy-c-text: var(--text);
+  --sy-c-bold: var(--text);
+  --sy-c-heading: var(--text);
+  --sy-c-light: var(--text-muted);
+  --sy-c-border: var(--line);
+  --sy-c-divider: var(--line);
+  --sy-c-link: var(--accent-text);
+  --sy-c-link-hover: var(--text);
+  --sy-c-foot-background: var(--surface-panel);
+  --sy-c-foot-text: var(--text-muted);
+  --sy-c-foot-divider: var(--line);
+  --sy-f-text: var(--font-sans);
+  --sy-f-heading: var(--font-display);
+  --sy-f-mono: var(--font-mono);
+
+  /* the accent scale: fills are the tint, lines 40 %, text --accent-text */
+  --pb-tint: color-mix(in srgb, var(--accent) var(--tint), transparent);
+  --pb-accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --accent-1: var(--pb-tint); --accent-2: var(--pb-tint); --accent-3: var(--pb-tint); --accent-4: var(--pb-tint);
+  --accent-5: var(--pb-tint); --accent-6: var(--pb-accent-line); --accent-7: var(--pb-accent-line); --accent-8: var(--pb-accent-line);
+  --accent-9: var(--accent); --accent-10: var(--accent); --accent-11: var(--accent-text); --accent-12: var(--text);
+  --accent-a1: var(--pb-tint); --accent-a2: var(--pb-tint); --accent-a3: var(--pb-tint); --accent-a4: var(--pb-tint);
+  --accent-a5: var(--pb-tint); --accent-a6: var(--pb-accent-line); --accent-a7: var(--pb-accent-line); --accent-a8: var(--pb-accent-line);
+  --accent-a9: var(--accent); --accent-a10: var(--accent); --accent-a11: var(--accent-text); --accent-a12: var(--text);
+  --accent-contrast: var(--text-on-accent);
+
+  /* the theme's greys onto ours */
+  --gray-1: var(--surface-ground); --gray-2: var(--surface-panel); --gray-3: var(--line); --gray-4: var(--line);
+  --gray-5: var(--line); --gray-6: var(--line-strong); --gray-7: var(--line-strong); --gray-8: var(--line-strong);
+  --gray-9: var(--text-muted); --gray-10: var(--text-muted); --gray-11: var(--text-muted); --gray-12: var(--text);
+  --gray-a1: color-mix(in srgb, var(--text) 3%, transparent); --gray-a2: color-mix(in srgb, var(--text) 4%, transparent);
+  --gray-a3: color-mix(in srgb, var(--text) 6%, transparent); --gray-a4: color-mix(in srgb, var(--text) 8%, transparent);
+  --gray-surface: var(--surface-raised);
+
+  /* code: the syntax tokens, never the accent */
+  --code-block-background: var(--syn-bg);
+  --code-block-caption-background: var(--surface-panel);
+  --code-block-highlight: color-mix(in srgb, var(--text) 8%, transparent);
+  --color-surface-accent: var(--surface-panel);
+}
+
+body { font-family: var(--font-sans); }
+h1, h2, h3, .yue h1, .yue h2, .yue h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; }
+.yue h1 { letter-spacing: -0.02em; }
+code, pre, kbd, samp { font-family: var(--font-mono); }
+
+/* ── The top bar: the landing's (.site) ── */
+.sy-head-brand { display: inline-flex; align-items: center; }   /* Shibuya leaves it inline: whitespace spaced it in light only */
+.sy-head-brand img { width: 28px; height: 28px; border-radius: 23.9%; margin-right: 10px; }
+.sy-head-brand .pb-pre { margin-right: 0.28em; }
+.sy-head-brand .pb-pre { font: 400 18px/1 var(--font-display); color: var(--text-muted); letter-spacing: -0.01em; }
+.sy-head-brand strong, .sy-head-brand img + strong { display: inline; font: 600 18px/1 var(--font-display); color: var(--text); letter-spacing: -0.01em; }  /* the name stays text beside the tile */
+.sy-head-links a { font: 500 var(--size-md)/1 var(--font-sans); color: var(--text-muted); border-radius: var(--radius-md); }
+.sy-head-links a:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.sy-head-blur { background: color-mix(in srgb, var(--surface-panel) 82%, transparent); }
+.sy-head a:focus-visible, .sy-head button:focus-visible, .pb-foot a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ── The sidebar and the page's contents: a tinted fill for the current item, never a coloured bar ── */
+.globaltoc li.toctree-l2.current { border-color: transparent; }
+.globaltoc > ul a.current {
+  color: var(--text); font-weight: 500; border-radius: var(--radius-md);
+  background: var(--pb-tint); margin-left: -8px; padding: 2px 8px;
+}
+.localtoc > ul li.active > a { color: var(--text); font-weight: 500; }
+.globaltoc > ul a:hover, .localtoc > ul li > a:hover { color: var(--text); }
+.yue a { text-decoration-color: var(--pb-accent-line); }
+
+/* ── Keys: one tinted primary, never a solid accent fill ── */
+.container.buttons a:first-child { color: var(--accent-text); background: var(--pb-tint); border-color: transparent; }
+.back-to-top:hover { color: var(--accent-text); background: var(--pb-tint); }
+
+/* ── Code: the --syn-* tokens on the Pygments classes ── */
+.highlight, .highlight pre { background: var(--syn-bg); color: var(--syn-text); }
+.highlight .k, .highlight .kc, .highlight .kd, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .ow { color: var(--syn-keyword); }
+.highlight .kt, .highlight .nc { color: var(--syn-type); }
+.highlight .s, .highlight .s1, .highlight .s2, .highlight .sa, .highlight .sb, .highlight .sc, .highlight .sd,
+.highlight .se, .highlight .sh, .highlight .si, .highlight .sr, .highlight .ss, .highlight .sx, .highlight .dl { color: var(--syn-string); }
+.highlight .m, .highlight .mb, .highlight .mf, .highlight .mh, .highlight .mi, .highlight .mo, .highlight .il { color: var(--syn-number); }
+.highlight .nf, .highlight .fm, .highlight .nb, .highlight .bp { color: var(--syn-function); }
+.highlight .c, .highlight .c1, .highlight .ch, .highlight .cm, .highlight .cp, .highlight .cpf, .highlight .cs { color: var(--syn-comment); font-style: normal; }
+.highlight .p, .highlight .o { color: var(--syn-punct); }
+.highlight .n, .highlight .nn, .highlight .nv, .highlight .na, .highlight .nt, .highlight .nx, .highlight .w { color: var(--syn-text); }
+.highlight .err { color: var(--danger); background: none; }
+
+/* ── The footer: the landing's (.foot) ── */
+.pb-foot { background: var(--surface-panel); border-top: 1px solid var(--line); padding: clamp(40px, 5vw, 64px) clamp(24px, 4vw, 48px) var(--space-6); font-family: var(--font-sans); }
+.pb-foot > * { max-width: 1200px; margin-inline: auto; }
+.pb-foot .cols { display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(140px, 1fr)); gap: var(--space-6) var(--space-5); }
+.pb-foot .lk { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; margin: 0 0 var(--space-3); }
+.pb-foot .lk img { width: 28px; height: 28px; border-radius: 23.9%; display: block; }
+.pb-foot .lk b { font: 600 18px/1 var(--font-display); letter-spacing: -0.01em; }
+.pb-foot .about p { margin: 0; max-width: 30ch; font: var(--size-sm)/1.5 var(--font-sans); color: var(--text-muted); }
+.pb-foot h4 { margin: 0 0 var(--space-3); font: 600 var(--size-sm)/1 var(--font-sans); color: var(--text); }
+.pb-foot ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.pb-foot ul a { font: var(--size-sm)/1.3 var(--font-sans); color: var(--text-muted); text-decoration: none; }
+.pb-foot ul a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.pb-foot .legal { display: flex; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-top: clamp(32px, 4vw, 56px); padding-top: var(--space-4); border-top: 1px solid var(--line); font: var(--size-2xs)/1.4 var(--font-sans); color: var(--text-muted); }
+@media (max-width: 820px) { .pb-foot .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pb-foot .about { grid-column: 1 / -1; } }
+
+/* ── Code in text and code blocks: flat cards on the tokens ── */
+.yue { --yue-c-code-background: var(--surface-raised); --yue-c-code-text: var(--text); }
+.yue div.highlight { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; }
+
+/* ── Notes: a flat panel, no coloured bar, no foreign blue; red only for danger and error ── */
+.yue .admonition {
+  --color-1: var(--surface-panel); --color-2: transparent; --color-3: var(--text-muted); --color-4: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius-lg); padding-left: 1rem;
+}
+.yue .admonition.danger, .yue .admonition.error { --color-4: var(--danger); }
+.yue .admonition:before, .yue .admonition:after { content: none; }
+.yue .admonition p.admonition-title { margin-left: -1rem; padding-left: 1rem; font-family: var(--font-sans); }
