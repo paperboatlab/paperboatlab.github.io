@@ -64,7 +64,12 @@ h2{margin:0 0 var(--space-5);font:600 var(--size-xl)/1.15 var(--font-display);le
 .shot.empty{aspect-ratio:21/9;display:grid;place-items:center;background:radial-gradient(color-mix(in srgb,var(--text) 10%,transparent) 1px,transparent 1px) 0 0/16px 16px,var(--surface-panel)}
 .shot.empty img{width:96px;border-radius:23.9%;box-shadow:var(--shadow-2)}
 
-/* what it does */
+/* what it does: each main feature, then its picture across the page; the rest as cards */
+.show{margin-bottom:clamp(48px,7vw,96px)}
+.show .txt{max-width:62ch;margin-bottom:var(--space-4)}
+.show .shot{margin-top:0}
+.show h3{margin:0 0 var(--space-2);font:600 clamp(24px,2.6vw,32px)/1.15 var(--font-display);letter-spacing:-.015em}
+.show p{margin:0;font:var(--size-md)/1.6 var(--font-sans);color:var(--text-muted)}
 .feats{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--space-4)}
 .feat{padding:20px;background:var(--surface-panel);border:1px solid var(--line);border-radius:var(--radius-xl)}
 .feat h3{margin:0 0 var(--space-2);font:600 18px/1.2 var(--font-display);letter-spacing:-.01em}
@@ -133,7 +138,7 @@ h2{margin:0 0 var(--space-5);font:600 var(--size-xl)/1.15 var(--font-display);le
     </div>
   </div>
   {{shot}}
-  <section aria-labelledby="does"><h2 id="does">What it does</h2><div class="feats">{{features}}</div></section>
+  <section aria-labelledby="does"><h2 id="does">What it does</h2>{{showcase}}<div class="feats">{{features}}</div></section>
   <section aria-labelledby="runs"><h2 id="runs">What it runs</h2><div class="runs"><div class="tags">{{tags}}</div><p>{{runs}}</p></div></section>
   <section aria-labelledby="start"><h2 id="start">Get started</h2>{{note}}<ol class="steps">{{steps}}</ol>
     <a class="more" href="/apps/{{app}}/{{getting_started}}">Read the getting started</a></section>

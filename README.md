@@ -14,7 +14,7 @@ for itself, as a project site would shadow its path here.
 | `/paperboat/` | `paperboat/docs/api/` |
 | `/toolkits/<package>/` | `paperboat/engine/toolkit/src/<package>/docs/` (built-in toolkits) |
 | `/toolkits/<name>/` | `engine/toolkit/<name>/docs/` in each optional toolkit's repository |
-| `/<app>/` | each app's page, what it is: `pages/app.html` filled from `pages/<app>.toml` (and `pages/<app>/`: the tile, screenshots). A new app is a content file, never a new template; every app in the platform's `apps.toml` needs one |
+| `/<app>/` | each app's page, what it is: `pages/app.html` filled from `pages/<app>.toml` (and `pages/<app>/`: the tile, screenshots). A `[[feature]]` with `shot = "<name>"` is shown large over `<name>-light.webp`/`-dark.webp`, a real 1440x900 window. A new app is a content file, never a new template; every app in the platform's `apps.toml` needs one |
 | `/apps/<name>/` | `docs/` in each app's repository: the platform's `apps.toml` (`paperboatlab/paperboat`), then the legacy Squero apps |
 
 `build.py` reads `toolkits.toml` and `apps.toml` from `paperboat`, clones the listed repositories,

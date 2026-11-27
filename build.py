@@ -418,6 +418,8 @@ def app_page(app: str) -> str:
     if c.get("screenshot"):
         shot = ('<div class="shot"><img class="lt" src="light.webp" alt="{0} in light mode">'
                 '<img class="dk" src="dark.webp" alt="{0} in dark mode"></div>').format(esc(c["label"]))
+    elif any(f.get("shot") for f in c["feature"]):   # the features show the app
+        shot = ""
     else:  # no screenshot yet: an empty window frame with the tile
         shot = '<div class="shot empty" role="img" aria-label="No screenshot yet"><img src="tile.png" alt=""></div>'
     fill = {
@@ -425,7 +427,13 @@ def app_page(app: str) -> str:
         "label": esc(c["label"]),
         "line": esc(c["line"]),
         "shot": shot,
-        "features": "".join(f'<div class="feat"><h3>{esc(f["title"])}</h3><p>{esc(f["text"])}</p></div>' for f in c["feature"]),
+        # a feature with a shot is shown large, beside its picture (<shot>-light/-dark.webp); the rest are cards
+        "showcase": "".join(
+            f'<div class="show"><div class="txt"><h3>{esc(f["title"])}</h3><p>{esc(f["text"])}</p></div>'
+            f'<div class="shot"><img class="lt" src="{esc(f["shot"])}-light.webp" alt="{esc(f["title"])}" loading="lazy">'
+            f'<img class="dk" src="{esc(f["shot"])}-dark.webp" alt="{esc(f["title"])}" loading="lazy"></div></div>'
+            for f in c["feature"] if f.get("shot")),
+        "features": "".join(f'<div class="feat"><h3>{esc(f["title"])}</h3><p>{esc(f["text"])}</p></div>' for f in c["feature"] if not f.get("shot")),
         "tags": "".join(f"<i>{esc(t)}</i>" for t in c["tags"]),
         "runs": esc(c["runs"]),
         "note": f'<p class="note">{esc(c["note"])}</p>' if c.get("note") else "",

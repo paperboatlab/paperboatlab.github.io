@@ -200,6 +200,10 @@ class AppPages(unittest.TestCase):
             self.assertIn(f'data-app="{app}"', page)
             self.assertIn(f'href="/apps/{app}/"', page)
             self.assertTrue((build.PAGES / app / "tile.png").exists(), app)
+            for f in tomllib.loads(content.read_text())["feature"]:   # a showcased feature has its pictures
+                if f.get("shot"):
+                    for t in ("light", "dark"):
+                        self.assertTrue((build.PAGES / app / f"{f['shot']}-{t}.webp").exists(), f"{app}: {f['shot']}-{t}.webp")
             if tomllib.loads(content.read_text()).get("screenshot"):
                 self.assertTrue((build.PAGES / app / "light.webp").exists() and (build.PAGES / app / "dark.webp").exists(), app)
 
