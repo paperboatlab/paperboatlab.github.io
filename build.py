@@ -446,6 +446,18 @@ def app_page(app: str) -> str:
     return out
 
 
+def download_page() -> str:
+    """/download/: pages/download.html (the Launcher, the newest release's packages) in app.html's chrome."""
+    chrome = (PAGES / "app.html").read_text()
+    head, rest = chrome.split('<main class="wrap">', 1)
+    out = head + (PAGES / "download.html").read_text() + rest.split("</main>", 1)[1]
+    fill = {"app": "paperboat", "label": "Download", "line": "Download the Paperboat Launcher and the paperboat CLI."}
+    for k, v in fill.items():
+        out = out.replace("{{" + k + "}}", v)
+    return out.replace('<a href="/#apps" aria-current="page">Apps</a>', '<a href="/#apps">Apps</a>').replace(
+        '<a href="/download/">Download</a>', '<a href="/download/" aria-current="page">Download</a>', 1)
+
+
 def hub(all_sites: list[dict], built: str) -> str:
     groups = [
         ("Apps", "paperboat app open <name>", lambda s: s["kind"] == "app"),
@@ -682,6 +694,8 @@ def main() -> int:
             continue
         shutil.copytree(PAGES / app, args.out / app, dirs_exist_ok=True)
         (args.out / app / "index.html").write_text(app_page(app))
+    (args.out / "download").mkdir(exist_ok=True)
+    (args.out / "download/index.html").write_text(download_page())
     (args.out / ".nojekyll").touch()  # Sphinx's _static and _images folders
     print(f"{len(all_sites)} sites, {failed} failed")
     return 0

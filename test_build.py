@@ -208,6 +208,12 @@ class AppPages(unittest.TestCase):
                 self.assertTrue((build.PAGES / app / "light.webp").exists() and (build.PAGES / app / "dark.webp").exists(), app)
 
     @unittest.skipUnless((Path(build.HERE) / "work/platform/.git").exists(), "needs the platform checkout (CI: work/platform)")
+    def test_download_page_renders(self) -> None:
+        page = build.download_page()
+        self.assertNotIn("{{", page)
+        self.assertIn('aria-current="page">Download', page)
+        self.assertIn("api.github.com/repos/paperboatlab/paperboat/releases", page)
+
     def test_every_registered_app_has_a_page(self) -> None:
         registry = tomllib.loads(build.git(Path(build.HERE) / "work/platform", "show", "HEAD:apps.toml"))
         for a in registry.get("apps", []):
