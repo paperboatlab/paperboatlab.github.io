@@ -32,7 +32,7 @@ text = "Work in a folder or a Malachite hub; omc sees only that workspace."
 
 [[step]]
 title = "Install it"
-code = "paperboat app install articula"
+code = "paperboat channel beta\npaperboat app install articula"
 text = "Installing pulls the omc runtime too."
 
 [[step]]

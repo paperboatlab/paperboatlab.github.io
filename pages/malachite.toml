@@ -40,7 +40,7 @@ text = "Keep a hub in a folder Dropbox, OneDrive, Google Drive or iCloud Drive s
 
 [[step]]
 title = "Install it"
-code = "paperboat app install malachite"
+code = "paperboat channel beta\npaperboat app install malachite"
 text = "Installing pulls the Julia and Python runtimes too."
 
 [[step]]
