@@ -1,10 +1,15 @@
 # Malachite's page at /malachite/ (pages/app.html). Facts from malachite's README and its manual (/apps/malachite/).
 label = "Malachite"
-line = "An engineering notebook: notes, runs and results in one hub, with Julia and Python cells."
+line = "The hub of your work: notes, models, flows, scripts and results in one folder that every Paperboat app opens, with Julia and Python cells in the notes."
 screenshot = ""   # the showcased features show the app
 tags = ["Markdown", "Julia", "Python"]
 runs = "Cells run in Paperboat's Julia and Python runtimes, in containers: nothing to install on the host but Paperboat and the app."
 getting_started = "getting_started.html"
+
+[[feature]]
+title = "One hub for every app"
+text = "A hub is a plain folder holding a whole piece of work: Articula's models, Simplicial's stations and flows, Julix's scripts, and the notes and results around them. Every app opens it from its bar, and a file opens in its own app."
+shot = "hub"
 
 [[feature]]
 title = "Notes and links"
@@ -22,8 +27,8 @@ text = "Every note in the hub and the links between them, on one canvas, kept pe
 shot = "graph"
 
 [[feature]]
-title = "The hub"
-text = "A plain folder in any layout you choose, with its own files in one hidden .malachite folder. Simplicial, Articula and Julix open their files from it."
+title = "Plain files"
+text = "Any layout you choose; Paperboat keeps what it writes for the hub in one hidden .malachite folder."
 
 [[feature]]
 title = "History"

@@ -22,6 +22,11 @@ text = "What your code shows as SVG or PNG becomes a figure beside the editor, k
 shot = "figures"
 
 [[feature]]
+title = "3D figures"
+text = "JulixPlot draws 3D axes too: a surface or a curve you orbit with a drag, zoom with the wheel and snap to a side from the view cube."
+shot = "figure3d"
+
+[[feature]]
 title = "Shared with Simplicial"
 text = "While a Simplicial station runs, the session's variables show in its Variables card, and a block's setting can bind to one."
 
