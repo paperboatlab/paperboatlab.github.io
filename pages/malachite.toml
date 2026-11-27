@@ -1,18 +1,25 @@
 # Malachite's page at /malachite/ (pages/app.html). Facts from malachite's README and its manual (/apps/malachite/).
 label = "Malachite"
 line = "An engineering notebook: notes, runs and results in one hub, with Julia and Python cells."
-screenshot = "the Malachite mockup (agent-docs rebrand/apps/malachite)"
+screenshot = ""   # the showcased features show the app
 tags = ["Markdown", "Julia", "Python"]
 runs = "Cells run in Paperboat's Julia and Python runtimes, in containers: nothing to install on the host but Paperboat and the app."
 getting_started = "getting_started.html"
 
 [[feature]]
 title = "Notes and links"
-text = "Markdown notes that link with [[name]] and carry their properties in a front matter; the graph draws the links."
+text = "Markdown notes that link with [[name]] and carry their properties in a front matter. Beside each note: its backlinks, its outgoing links and the notes around it."
+shot = "notes"
 
 [[feature]]
 title = "Julia and Python cells"
-text = "Fenced julia and python blocks in a note run in the hub's session for that language."
+text = "Fenced julia and python blocks in a note run in the hub's session for that language; what a cell prints or draws stays under it."
+shot = "cells"
+
+[[feature]]
+title = "Graph"
+text = "Every note in the hub and the links between them, on one canvas, kept per hub."
+shot = "graph"
 
 [[feature]]
 title = "The hub"

@@ -1,27 +1,26 @@
 # Articula's page at /articula/ (pages/app.html). Facts from articula's README and its manual (/apps/articula/).
 label = "Articula"
 line = "Acausal modelling: an OpenModelica editor with a library browser, a diagram, the model's text, a model check, and Simulate with a plot and a variables browser."
-screenshot = ""   # none yet: the page shows a placeholder frame
+screenshot = ""   # none: the showcased features show the app
 note = "v0.1 is in beta, for Linux x86_64."
 tags = ["Modelica", "OpenModelica"]
 runs = "OpenModelica's omc runs as Paperboat's omc runtime, in a container: nothing to install on the host but Paperboat and the app."
 getting_started = "getting_started.html"
 
 [[feature]]
+title = "Diagram and model check"
+text = "Wire components and connectors on a canvas, or edit the .mo as text. Every edit goes through omc, so the file stays OMEdit-compatible, and the bar under the diagram counts equations and unknowns as you go."
+shot = "diagram"
+
+[[feature]]
 title = "Library browser"
-text = "The Modelica Standard Library and your own packages; drag a part onto the diagram, F1 reads its documentation."
+text = "The Modelica Standard Library and your own packages as one tree. Drag a part onto the diagram; F1 reads its class's documentation."
+shot = "library"
 
 [[feature]]
-title = "Diagram and text"
-text = "Components and connectors on a canvas, the .mo beside it. Every edit goes through omc, so the file stays OMEdit-compatible."
-
-[[feature]]
-title = "Model check"
-text = "The bar counts equations and unknowns as you edit; Check asks omc."
-
-[[feature]]
-title = "Simulate"
-text = "Run the model, then tick variables in the browser to plot them."
+title = "Simulate and plot"
+text = "Simulate runs the model in omc, beside the diagram. Tick variables in the browser to plot them, and read each one's final value."
+shot = "simulate"
 
 [[feature]]
 title = "Export a station"

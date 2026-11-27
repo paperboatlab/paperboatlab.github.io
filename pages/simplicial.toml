@@ -2,7 +2,7 @@
 # (/apps/simplicial/) and its commands.toml.
 label = "Simplicial"
 line = "Visual flow, station and block-diagram simulation: a C++20 engine, stations in C++, Python or Julia, and toolkits of blocks."
-screenshot = ""   # none yet: the page shows a placeholder frame
+screenshot = ""   # the showcased features show the app
 tags = ["C++", "Python", "Julia"]
 runs = "The engine is C++20; Python and Julia stations run in Paperboat's runtimes, in containers."
 getting_started = "getting_started.html"
@@ -10,15 +10,18 @@ note = "v0.1 is in beta, for Linux x86_64."
 
 [[feature]]
 title = "Setup"
-text = "A 2D or 3D scene of the things in a station, their settings and how they connect."
+text = "A 2D or 3D scene of the things in a station. Pick one to set its properties; a property can be bound to a variable."
+shot = "setup"
 
 [[feature]]
 title = "Flow"
-text = "A node graph of blocks that turns the setup into results. A setting takes a number, a variable or a formula of them."
+text = "A node graph of blocks that turns the setup into results: wire ports, set parameters. A setting takes a number, a variable or a formula of them."
+shot = "flow"
 
 [[feature]]
 title = "Run"
-text = "Watch it while it runs: progress, plots and logs, and a record of every run."
+text = "Watch it while it runs: the scene moves, the Board plots live values, and progress and logs follow along. Every run is kept."
+shot = "run"
 
 [[feature]]
 title = "Stations and flows"
